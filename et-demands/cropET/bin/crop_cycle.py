@@ -88,13 +88,17 @@ def crop_cycle(data, et_cell, debug_flag=False, mp_procs=1):
     """
     crop_count = 0
     for crop_num, crop in sorted(et_cell.crop_params.items()):
-        if et_cell.crop_flags[crop_num] == 0:
-            if debug_flag:
-                logging.debug('Crop %2d %s' % (crop_num, crop.name))
-                logging.debug('  NOT USED')
-            continue
-        crop_count += 1
-        crop_day_loop(crop_count, data, et_cell, crop, debug_flag, mp_procs)
+        try:
+            if et_cell.crop_flags[crop_num] == 0:
+                if debug_flag:
+                    logging.debug('Crop %2d %s' % (crop_num, crop.name))
+                    logging.debug('  NOT USED')
+                continue
+            crop_count += 1
+            crop_day_loop(crop_count, data, et_cell, crop, debug_flag, mp_procs)
+        except KeyError:
+            logging.warning('Crop %2d %s' % (crop_num, crop.name))
+            logging.warning(' KEYERROR NOT USED')
 
 def crop_day_loop_mp(tup):
     """Compute crop et for each daily timestep using multiprocessing
@@ -231,6 +235,8 @@ def crop_day_loop(crop_count, data, et_cell, crop, debug_flag=False,
         # For now, cast all values to native Python types
         foo_day.sdays += 1
         foo_day.doy = int(step_doy)
+        if foo_day.doy == 155:
+            a = 1
         foo_day.year = int(step_dt.year)
         foo_day.month = int(step_dt.month)
         foo_day.day = int(step_dt.day)

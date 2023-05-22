@@ -1,7 +1,7 @@
-#--------------------------------
+# --------------------------------
 # Name:         gdal_common.py
 # Purpose:      Common GDAL Support Functions
-#--------------------------------
+# --------------------------------
 
 import glob
 import math
@@ -11,11 +11,16 @@ import sys
 import numpy as np
 from osgeo import gdal, ogr, osr
 
+proj_lib_path = '/home/dgketchum/miniconda3/envs/etdemands/share/proj'
+os.environ['PROJ_LIB'] = proj_lib_path
+os.environ['PROJ_DEBUG'] = '3'
+
 gdal.UseExceptions()
 
 
 class Extent:
     """Bounding Geographic Extent"""
+
     # def __repr__(self):
     #     return '<Extent xmin:{0} ymin:{1} xmax:{2} ymax:{3}>'.format(
     #         self.xmin, self.ymin, self.xmax, self.ymax)
@@ -950,6 +955,7 @@ def raster_to_block(input_raster, block_i=0, block_j=0, bs=64, band=1,
     else:
         return output_array
 
+
 def raster_ds_to_block(input_raster_ds, block_i=0, block_j=0, bs=64, band=1,
                        fill_value=None, return_nodata=False):
     """Return a NumPy array from an opened raster dataset
@@ -1108,5 +1114,5 @@ def build_empty_raster(output_raster, band_cnt=1, output_dtype=None,
 def remove_file(file_path):
     """Remove a feature/raster and all of its ancillary files"""
     file_ws = os.path.dirname(file_path)
-    for file_name in glob.glob(os.path.splitext(file_path)[0]+".*"):
+    for file_name in glob.glob(os.path.splitext(file_path)[0] + ".*"):
         os.remove(os.path.join(file_ws, file_name))

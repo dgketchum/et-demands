@@ -13,11 +13,11 @@ import sys
 import time
 import pandas as pd
 
-
 import crop_et_data
 import crop_cycle
 import et_cell
 import util
+
 
 def main(ini_path, log_level=logging.WARNING,
          etcid_to_run='ALL', debug_flag=False,
@@ -185,7 +185,7 @@ def main(ini_path, log_level=logging.WARNING,
         del pool, results
 
     logging.warning('\nCROPET Run Completed')
-    logging.info('\n{} seconds'.format(time.perf_counter()-clock_start))
+    logging.info('\n{} seconds'.format(time.perf_counter() - clock_start))
 
     # Print summary stats to screen
     # This should be moved to separate function, module, or tool
@@ -201,7 +201,7 @@ def main(ini_path, log_level=logging.WARNING,
                     data.gs_output_ws, '{0}_gs_crop_{1:02d}.csv'.format(
                         cell_id, int(crop.class_number)))
                 gs_df = pd.read_csv(gs_output_path, header=0, comment='#',
-                                      sep=',')
+                                    sep=',')
                 # ignore first year to match gs summary output csv (added 8/27/2020)
 
                 # print(gs_df[1:])
@@ -238,6 +238,7 @@ def cell_mp(tup):
 
     return cell_sp(*tup)
 
+
 def cell_sp(cell_count, data, cell, mp_procs=1):
     """Compute crop cycle for each cell
 
@@ -264,6 +265,7 @@ def cell_sp(cell_count, data, cell, mp_procs=1):
     print('CellID: {}'.format(cell.cell_id))
     crop_cycle.crop_cycle(data, cell, debug_flag=False, mp_procs=mp_procs)
 
+
 def is_valid_file(parser, arg):
     """checks if file is valid
     Parameters
@@ -288,6 +290,7 @@ def is_valid_file(parser, arg):
         parser.error('The file {} does not exist!'.format(arg))
     else:
         return arg
+
 
 def is_valid_directory(parser, arg):
     """checks if directory is valid
@@ -314,6 +317,7 @@ def is_valid_directory(parser, arg):
         parser.error('The directory {} does not exist!'.format(arg))
     else:
         return arg
+
 
 def parse_args():
     """initialize parser
@@ -365,7 +369,7 @@ def parse_args():
 
 
 if __name__ == '__main__':
-    args = parse_args()
-    main(ini_path=args.ini, log_level=args.log_level,
-         etcid_to_run=args.etcid, cal_flag=args.cal,
-         debug_flag=args.debug, mp_procs=args.multiprocessing)
+    ini = '/home/dgketchum/PycharmProjects/et-demands/examples/tongue/tongue_example_cet.ini'
+    logging.basicConfig(level=logging.ERROR)
+    overwrite = True
+    main(ini_path=ini, debug_flag=False)
