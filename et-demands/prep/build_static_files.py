@@ -325,9 +325,10 @@ def main(ini_path, area_threshold=10,
                     crop_area_list.append(0)
             crop_flag_list = [
                 1 if area > area_threshold else 0 for area in crop_area_list]
-            output_list = output_list + crop_flag_list
+            # TODO: hack to make list fit to existing headers
+            output_list = output_list + crop_flag_list[:-1]
+            logging.info('write cell ID {}, len {}'.format(cell_id, len(output_list)))
             output_f.write('\t'.join(map(str, output_list)) + '\n')
-
             del crop_list, crop_area_list, crop_flag_list, output_list
 
     # Write cell cuttings
@@ -407,16 +408,10 @@ def arg_parse():
 
 
 if __name__ == '__main__':
-    args = arg_parse()
-
-    logging.basicConfig(level=args.loglevel, format='%(message)s')
-    logging.info('\n{}'.format('#' * 80))
-    logging.info('{0:<20s} {1}'.format(
-        'Run Time Stamp:', dt.datetime.now().isoformat(' ')))
-    logging.info('{0:<20s} {1}'.format('Current Directory:', os.getcwd()))
-    logging.info('{0:<20s} {1}'.format(
-        'Script:', os.path.basename(sys.argv[0])))
-
-    main(ini_path=args.ini, area_threshold=args.acres,
-         dairy_cuttings=args.dairy, beef_cuttings=args.beef,
-         overwrite_flag=args.overwrite)
+    ini = '/home/dgketchum/PycharmProjects/et-demands/examples/tongue/tongue_example_prep.ini'
+    debug = logging.DEBUG
+    overwrite = True
+    logging.basicConfig(level=logging.DEBUG)
+    main(ini_path=ini, area_threshold=0,
+         dairy_cuttings=3, beef_cuttings=3,
+         overwrite_flag=overwrite)

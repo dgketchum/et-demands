@@ -1,7 +1,7 @@
-#--------------------------------
+# --------------------------------
 # Name:         et_demands_zonal_stats.py
 # Purpose:      Calculate zonal stats for ET zones
-#--------------------------------
+# --------------------------------
 
 import argparse
 from collections import defaultdict
@@ -20,7 +20,6 @@ from shapely.wkt import loads
 import _arcpy
 import _gdal_common as gdc
 import _util as util
-
 
 
 def main(ini_path, overwrite_flag=False):
@@ -194,8 +193,8 @@ def main(ini_path, overwrite_flag=False):
             fieldDefn.GetWidth(), fieldDefn.GetPrecision()
         ))
         if (fieldDefn.GetFieldTypeName(fieldDefn.GetType()) == 'Real' and
-                fieldDefn.GetWidth() < 24 and
-                fieldDefn.GetPrecision() > 0):
+            fieldDefn.GetWidth() < 24 and
+            fieldDefn.GetPrecision() > 0):
             copyDefn.SetWidth(24)
             copyDefn.SetPrecision(15)
         else:
@@ -222,7 +221,7 @@ def main(ini_path, overwrite_flag=False):
                       'projected coordinate system, exiting')
         sys.exit()
     zone_full_unit = zone_full_osr.GetLinearUnitsName()
-    if zone_full_unit.upper() not in ['METER', 'METERS','METRE']:
+    if zone_full_unit.upper() not in ['METER', 'METERS', 'METRE']:
         logging.error('\nERROR: Unsupported unit type: {}'.format(
             zone_full_unit))
         sys.exit()
@@ -268,7 +267,7 @@ def main(ini_path, overwrite_flag=False):
 
         crop_dict[crop_fid] = {
             'fid': crop_fid,
-            'wkt' :proj_geom.ExportToWkt(),
+            'wkt': proj_geom.ExportToWkt(),
             'value': crop_ftr.GetField(crop_field),
         }
     crop_ds = None
@@ -369,7 +368,7 @@ def main(ini_path, overwrite_flag=False):
 
         if soil_crop_mask_flag or save_crop_mask_flag:
             # Combine all polygons/multipolygons into a single multipolygon
-            zone_crop_poly = unary_union(zone_crop_polys)\
+            zone_crop_poly = unary_union(zone_crop_polys) \
                 .buffer(simplify_threshold).buffer(-simplify_threshold)
             # .simplify(simplify_threshold, preserve_topology=False)\
             # zone_crop_poly = cascaded_union(zone_crop_polys)
@@ -409,7 +408,6 @@ def main(ini_path, overwrite_flag=False):
         crop_field for zone_crop_dict in crop_stats.values()
         for crop_field in zone_crop_dict.keys()])))
     logging.info('\nCrop Fields: {}'.format(', '.join(map(str, etd_crops))))
-
 
     logging.debug('\nAdding crop fields to zones shapefile')
     for crop_field in crop_field_list:
@@ -552,42 +550,6 @@ def main(ini_path, overwrite_flag=False):
     _arcpy.update_cursor(zone_path, values)
 
 
-#     # Save by FID/feature for easier writing to shapefile
-#     logging.debug('\nParsing crop zonal stats')
-#     zone_crop_dict = {}
-#     crop_field_fmt = 'CROP_{:02d}'
-#     for fid, ftr in enumerate(zs):
-#         # logging.debug('FID: {}'.format(i))
-#         zone_crop_dict[fid] = {}
-#         for cdl_str, cdl_pixels in ftr.items():
-#             # logging.debug('  {} {}'.format(cdl_str, cdl_pixels))
-#             cdl_number = int(cdl_str)
-#             # Only 'crops' have a crop number (no shrub, water, urban, etc.)
-#             if cdl_number not in crop_num_dict.keys():
-#                 if cdl_number != 0:
-#                     logging.debug('  Skipping CDL {}'.format(cdl_number))
-#                 continue
-#
-#             # Crop number can be an integer or list of integers (double crops)
-#             crop_number = crop_num_dict[cdl_number]
-#
-#             # Crop numbers of -1 are for crops that haven't been linked
-#             #   to a CDL number
-#             if not crop_number or crop_number == -1:
-#                 logging.warning('  Missing CDL {}'.format(cdl_number))
-#                 continue
-#
-#             crop_acreage = cdl_pixels * sqm_2_acres * snap_cs ** 2
-#
-#             # Save acreage for both double crops
-#             for c in crop_number:
-#                 crop_field = crop_field_fmt.format(c)
-#                 if crop_field not in zone_crop_dict[fid].keys():
-#                     zone_crop_dict[fid][crop_field] = crop_acreage
-#                 else:
-#                     zone_crop_dict[fid][crop_field] += crop_acreage
-
-
 def cell_lat_lon_func(input_path, lat_field, lon_field):
     """"""
 
@@ -640,14 +602,8 @@ def arg_parse():
 
 
 if __name__ == '__main__':
-    args = arg_parse()
-
-    logging.basicConfig(level=args.loglevel, format='%(message)s')
-    logging.info('\n{}'.format('#' * 80))
-    logging.info('{0:<20s} {1}'.format(
-        'Run Time Stamp:', dt.datetime.now().isoformat(' ')))
-    logging.info('{0:<20s} {1}'.format('Current Directory:', os.getcwd()))
-    logging.info('{0:<20s} {1}'.format(
-        'Script:', os.path.basename(sys.argv[0])))
-
-    main(ini_path=args.ini, overwrite_flag=args.overwrite)
+    ini = '/home/dgketchum/PycharmProjects/et-demands/examples/tongue/tongue_example_prep.ini'
+    debug = logging.DEBUG
+    overwrite = True
+    logging.basicConfig(level=logging.DEBUG)
+    main(ini_path=ini, overwrite_flag=True)
