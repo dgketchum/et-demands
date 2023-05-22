@@ -13,9 +13,10 @@ import sys
 import tkinter as tk
 import tkinter.filedialog
 
-def main(ini_path, bin_ws = '', verbose_flag = False,
-        etcid_to_run = 'ALL', cal_flag = False,
-        debug_flag = False, mp_procs = 1):
+
+def main(ini_path, bin_ws='', verbose_flag=False,
+         etcid_to_run='ALL', cal_flag=False,
+         debug_flag=False, mp_procs=1):
     """Wrapper for running crop et model
 
     Arguments
@@ -84,32 +85,33 @@ def main(ini_path, bin_ws = '', verbose_flag = False,
         args_list.extend(['-mp', str(mp_procs)])
     subprocess.call(args_list)
 
+
 def parse_args():
     parser = argparse.ArgumentParser(
         description='Crop ET-Demands',
         formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     parser.add_argument(
         '-i', '--ini', metavar='PATH',
-        type = lambda x: is_valid_file(parser, x), help='Input file')
+        type=lambda x: is_valid_file(parser, x), help='Input file')
     parser.add_argument(
         '-b', '--bin', metavar='DIR',
-        type = lambda x: is_valid_directory(parser, x), help = 'Source code directory path')
+        type=lambda x: is_valid_directory(parser, x), help='Source code directory path')
     parser.add_argument(
         '-d', '--debug', action="store_true", default=False,
-        help = "Save debug level comments to debug.txt")
+        help="Save debug level comments to debug.txt")
     parser.add_argument(
         '-c', '--etcid', metavar='etcid_to_run', default='ALL',
-        help = "User specified et cell id to run")
+        help="User specified et cell id to run")
     parser.add_argument(
         '-v', '--verbose', action="store_true", default=False,
-        help = "Print info level comments")
+        help="Print info level comments")
     parser.add_argument(
         '-mp', '--multiprocessing', default=1, type=int,
         metavar='N', nargs='?', const=mp.cpu_count(),
         help='Number of processers to use')
     parser.add_argument(
-        '--cal', action = 'store_true', default = False,
-        help = "Display mean annual start/end dates to screen")
+        '--cal', action='store_true', default=False,
+        help="Display mean annual start/end dates to screen")
     args = parser.parse_args()
 
     # Convert INI path to an absolute path if necessary
@@ -122,8 +124,8 @@ def parse_args():
 
     return args
 
-def get_ini_path(workspace):
 
+def get_ini_path(workspace):
     root = tk.Tk()
     ini_path = tkinter.filedialog.askopenfilename(
         initialdir=workspace, parent=root, filetypes=[('INI files', '.ini')],
@@ -131,29 +133,31 @@ def get_ini_path(workspace):
     root.destroy()
     return ini_path
 
+
 def is_valid_file(parser, arg):
     if not os.path.isfile(arg):
         parser.error('The file {} does not exist!'.format(arg))
     else:
         return arg
+
+
 def is_valid_directory(parser, arg):
     if not os.path.isdir(arg):
         parser.error('The directory {} does not exist!'.format(arg))
     else:
         return arg
 
+
 if __name__ == '__main__':
-    args = parse_args()
-    if args.ini:
-        ini_path = args.ini
-    else:
-        # ini_path = get_ini_path(os.getcwd())
 
-        # todo: upgrade this with path call
-        ini_path = 'D:/projects/et-demands/milk_case/msm_cet_dri_cdrive.ini'
-        args.bin =  'D:/projects/et-demands/et-demands/cropET/bin'
-        args.multiprocessing = 4
+    ini_path = '/home/dgketchum/PycharmProjects/et-demands/examples/tongue/tongue_example_cet.ini'
+    bin = '/home/dgketchum/PycharmProjects/et-demands/et-demands/cropET/bin'
+    multiprocessing = 4
+    verbose = 1
+    etcid = 1
+    cal = 1
+    debug = 1
 
-    main(ini_path, bin_ws = args.bin, verbose_flag=args.verbose,
-        etcid_to_run = args.etcid, cal_flag = args.cal,
-        debug_flag = args.debug, mp_procs=args.multiprocessing)
+    main(ini_path, bin_ws=bin, verbose_flag=verbose,
+         etcid_to_run=etcid, cal_flag=cal,
+         debug_flag=debug, mp_procs=multiprocessing)

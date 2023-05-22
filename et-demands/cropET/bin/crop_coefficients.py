@@ -103,7 +103,6 @@ def read_crop_coefs_txt(data):
     See comments in code
 
     """
-
     a = np.loadtxt(data.crop_coefs_path, delimiter = data.crop_coefs_delimiter, dtype = 'str')
     curve_numbers = a[2, 2:]
     curve_type_numbs = a[3, 2:]    # repaired from 'a[2, 2:]' - dlk - 05/07/2016

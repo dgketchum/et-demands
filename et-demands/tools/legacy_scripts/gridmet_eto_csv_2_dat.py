@@ -62,7 +62,7 @@ def main(project_ws):
     for item in os.listdir(eto_ws):
         if not item.endswith('.csv'):
             continue
-        print item
+        print(item)
 
         # Get the GRIDMET cell ID
         station_id = item.split('.')[0].split('_')[1]

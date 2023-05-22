@@ -1,7 +1,7 @@
-#--------------------------------
+# --------------------------------
 # Name:         build_ag_cdl_shapefiles.py
 # Purpose:      Build agricultural land shapefiles from CDL rasters
-#--------------------------------
+# --------------------------------
 
 import argparse
 import datetime as dt
@@ -11,11 +11,11 @@ import sys
 
 import numpy as np
 from osgeo import gdal, ogr, osr
-
 import _arcpy as arcpy
 import _gdal_common as gdc
 # import _ogr2ogr as ogr2ogr
 import _util as util
+
 
 
 def main(ini_path, overwrite_flag=False):
@@ -100,6 +100,10 @@ def main(ini_path, overwrite_flag=False):
     # ET Zones Properties
     zone_ds = shp_driver.Open(zone_path, 0)
     zone_lyr = zone_ds.GetLayer()
+
+    spatial_ref = osr.SpatialReference()
+    spatial_ref.ImportFromEPSG(5071)
+
     zone_osr = zone_lyr.GetSpatialRef()
     zone_wkt = gdc.osr_proj(zone_osr)
     zone_extent = gdc.feature_lyr_extent(zone_lyr)
@@ -150,7 +154,7 @@ def main(ini_path, overwrite_flag=False):
     #     clip_cols, clip_rows, 1,  zones_mask_gtype)
     memory_driver = gdal.GetDriverByName('MEM')
     zone_mask_ds = memory_driver.Create(
-        '', clip_cols, clip_rows, 1,  zone_mask_gtype)
+        '', clip_cols, clip_rows, 1, zone_mask_gtype)
     zone_mask_ds.SetProjection(cdl_proj)
     zone_mask_ds.SetGeoTransform(clip_geo)
     zone_mask_band = zone_mask_ds.GetRasterBand(1)
@@ -176,7 +180,7 @@ def main(ini_path, overwrite_flag=False):
     # logging.debug('\nProcessing CDL by tile')
     # tile_list = [[0, 0]]
     # for tile_i, tile_j in tile_list:
-        # logging.debug('  Tile: {} {}'.format(tile_i, tile_j))
+    # logging.debug('  Tile: {} {}'.format(tile_i, tile_j))
 
     logging.debug('\nConverting CDL raster to polygon')
 
@@ -193,7 +197,7 @@ def main(ini_path, overwrite_flag=False):
     # Set non-agricultural pixels to nodata
     logging.debug('\nMasking non-crop pixels')
     cdl_array_values = np.unique(cdl_array)
-    nodata_mask = np.zeros(cdl_array.shape, dtype=np.bool)
+    nodata_mask = np.zeros(cdl_array.shape, dtype=bool)
     for value in range(1, 255):
         if value in cdl_crops:
             continue
@@ -205,7 +209,7 @@ def main(ini_path, overwrite_flag=False):
 
     # # DEADBEEF - This is using the remap ranges
     # # It is probably more efficient than processing each crop separately
-    # nodata_mask = np.zeros(cdl_array.shape, dtype=np.bool)
+    # nodata_mask = np.zeros(cdl_array.shape, dtype=bool)
     # for [start, end, value] in cdl_agmask_remap:
     #     if value == 1:
     #         continue
@@ -311,13 +315,8 @@ def arg_parse():
 
 
 if __name__ == '__main__':
-    args = arg_parse()
-
-    logging.basicConfig(level=args.loglevel, format='%(message)s')
-    logging.info('\n{}'.format('#' * 80))
-    log_f = '{:<20s} {}'
-    logging.info(log_f.format('Start Time:', dt.datetime.now().isoformat(' ')))
-    logging.info(log_f.format('Current Directory:', os.getcwd()))
-    logging.info(log_f.format('Script:', os.path.basename(sys.argv[0])))
-
-    main(ini_path=args.ini, overwrite_flag=args.overwrite)
+    ini = '/home/dgketchum/PycharmProjects/et-demands/examples/tongue/tongue_example_prep.ini'
+    debug = logging.DEBUG
+    overwrite = True
+    logging.basicConfig(level=logging.DEBUG)
+    main(ini_path=ini, overwrite_flag=True)
