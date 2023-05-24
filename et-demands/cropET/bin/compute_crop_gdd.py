@@ -4,6 +4,7 @@ Called by crop_cycle.py
 
 """
 
+
 def compute_crop_gdd(crop, foo, foo_day):
     """Calculate crop growing degree days
 
@@ -31,12 +32,12 @@ def compute_crop_gdd(crop, foo, foo_day):
     etref_lost = 0.0
     if foo_day.sdays > 30:
         etref_lost = foo_day.etref_array[0]
-        for idx in range(29):    # idx = 1 is 30 days ago
+        for idx in range(29):  # idx = 1 is 30 days ago
             foo_day.etref_array[idx] = foo_day.etref_array[idx + 1]
         foo_day.etref_array[29] = foo_day.etref
         foo.etref_30 = foo.etref_30 + (foo_day.etref - etref_lost) / 30.
     else:
-        foo_day.etref_array[foo_day.sdays-1] = foo_day.etref
+        foo_day.etref_array[foo_day.sdays - 1] = foo_day.etref
         foo.etref_30 = (foo.etref_30 * (foo_day.sdays - 1) + foo_day.etref) / foo_day.sdays
 
     # Reset CGDD if new year
@@ -50,16 +51,16 @@ def compute_crop_gdd(crop, foo, foo_day):
         (foo_day.doy_prev < crop.gdd_trigger_doy and
          foo_day.doy >= crop.gdd_trigger_doy)):
         foo.cgdd = 0.0
-        foo.doy_start_cycle = 0   # DOY 0 - reset planting date also
-        foo.real_start = False    # April 12, 2009 rga
-        foo.in_season = False     # July 30, 20120 dlk
+        foo.doy_start_cycle = 0  # DOY 0 - reset planting date also
+        foo.real_start = False  # April 12, 2009 rga
+        foo.in_season = False  # July 30, 20120 dlk
     elif (not crop.winter_crop and
           (foo_day.doy_prev > (crop.gdd_trigger_doy + 199) and
            foo_day.doy < (crop.gdd_trigger_doy + 199))):
         foo.cgdd = 0.0
-        foo.doy_start_cycle = 0   # DoY 0 - reset planting date also
-        foo.real_start = False    # April 12, 2009 rga
-        foo.in_season = False     # July 30, 20120 dlk
+        foo.doy_start_cycle = 0  # DoY 0 - reset planting date also
+        foo.real_start = False  # April 12, 2009 rga
+        foo.in_season = False  # July 30, 20120 dlk
     foo_day.doy_prev = foo_day.doy
 
     # Calculate CGDD since trigger date
