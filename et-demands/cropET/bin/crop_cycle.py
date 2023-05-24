@@ -36,6 +36,7 @@ class DayData:
     def __init__(self):
         self.etref_array = np.zeros(30)
 
+
 def crop_cycle_mp(data, et_cell, mp_procs=1):
     """Compute crop et for all crops using multiprocessing
 
@@ -62,7 +63,6 @@ def crop_cycle_mp(data, et_cell, mp_procs=1):
     crop_mp_list = []
     for crop_num, crop in sorted(et_cell.crop_params.items()):
         if et_cell.crop_flags[crop_num] != 0:
-
             # Force debug_flag false when multiprocessing
             crop_count += 1
             crop_mp_list.append([crop_count, data, et_cell, crop, False,
@@ -74,6 +74,7 @@ def crop_cycle_mp(data, et_cell, mp_procs=1):
         pool.close()
         pool.join()
         del pool, results
+
 
 def crop_cycle(data, et_cell, debug_flag=False, mp_procs=1):
     """Compute crop ET for all crops
@@ -99,6 +100,7 @@ def crop_cycle(data, et_cell, debug_flag=False, mp_procs=1):
         except KeyError:
             logging.warning('Crop %2d %s' % (crop_num, crop.name))
             logging.warning(' KEYERROR NOT USED')
+
 
 def crop_day_loop_mp(tup):
     """Compute crop et for each daily timestep using multiprocessing
@@ -133,6 +135,7 @@ def crop_day_loop_mp(tup):
     """
 
     return crop_day_loop(*tup)
+
 
 def crop_day_loop(crop_count, data, et_cell, crop, debug_flag=False,
                   mp_procs=1):
@@ -252,7 +255,7 @@ def crop_day_loop(crop_count, data, et_cell, crop, debug_flag=False,
             foo_day.tmin = float(et_cell.climate_df.at[step_dt, 'tmin'])
             foo_day.tmax = float(et_cell.climate_df.at[step_dt, 'tmax'])
             foo_day.t30 = float(et_cell.climate_df.at[step_dt, 't30'])
-        elif data.phenology_option == 1:    # annual crops only
+        elif data.phenology_option == 1:  # annual crops only
             if crop.is_annual:
                 foo_day.tmean = float(et_cell.climate_df.at[step_dt, 'meant'])
                 foo_day.tmin = float(et_cell.climate_df.at[step_dt, 'mint'])
@@ -263,7 +266,7 @@ def crop_day_loop(crop_count, data, et_cell, crop, debug_flag=False,
                 foo_day.tmin = float(et_cell.climate_df.at[step_dt, 'tmin'])
                 foo_day.tmax = float(et_cell.climate_df.at[step_dt, 'tmax'])
                 foo_day.t30 = float(et_cell.climate_df.at[step_dt, 't30'])
-        elif data.phenology_option == 2:    # perennial crops only
+        elif data.phenology_option == 2:  # perennial crops only
             if not crop.is_annual:
                 foo_day.tmean = float(et_cell.climate_df.at[step_dt, 'meant'])
                 foo_day.tmin = float(et_cell.climate_df.at[step_dt, 'mint'])
@@ -274,7 +277,7 @@ def crop_day_loop(crop_count, data, et_cell, crop, debug_flag=False,
                 foo_day.tmin = float(et_cell.climate_df.at[step_dt, 'tmin'])
                 foo_day.tmax = float(et_cell.climate_df.at[step_dt, 'tmax'])
                 foo_day.t30 = float(et_cell.climate_df.at[step_dt, 't30'])
-        else:    # both annual and perennial
+        else:  # both annual and perennial
             foo_day.tmean = float(et_cell.climate_df.at[step_dt, 'meant'])
             foo_day.tmin = float(et_cell.climate_df.at[step_dt, 'mint'])
             foo_day.tmax = float(et_cell.climate_df.at[step_dt, 'maxt'])
@@ -318,19 +321,19 @@ def crop_day_loop(crop_count, data, et_cell, crop, debug_flag=False,
         if debug_flag:
             logging.debug((
                 '{}: ETref  {:.6f}  Precip {:.6f}  T30 {:.6f}').format(
-                    func_str, foo_day.etref, foo_day.precip, foo_day.t30))
+                func_str, foo_day.etref, foo_day.precip, foo_day.t30))
             logging.debug((
                 '{}: ETact  {:.6f}  ETpot {:.6f}   ETbas {:.6f}').format(
-                    func_str, foo.etc_act, foo.etc_pot, foo.etc_bas))
+                func_str, foo.etc_act, foo.etc_pot, foo.etc_bas))
             logging.debug((
                 '{}: Irrig  {:.6f}  Runoff {:.6f}  ' +
                 'DPerc {:.6f}  NIWR {:.6f}').format(
-                    func_str, foo.irr_sim, foo.sro, foo.dperc, foo.niwr))
+                func_str, foo.irr_sim, foo.sro, foo.dperc, foo.niwr))
 
         # Check that season started
         if foo_day.month == 12 and foo_day.day == 31:
             season_count = foo.crop_df.loc[
-                str(foo_day.year):str(foo_day.year), 'season'].sum()
+                           str(foo_day.year):str(foo_day.year), 'season'].sum()
             if season_count == 0:
                 logging.warning(
                     '  Crop {} - {} growing season never started'.format(
@@ -342,11 +345,12 @@ def crop_day_loop(crop_count, data, et_cell, crop, debug_flag=False,
 
     # Write output files
     if (data.cet_out['daily_output_flag'] or
-            data.cet_out['monthly_output_flag'] or
-            data.cet_out['annual_output_flag'] or
-            data.gs_output_flag):
+        data.cet_out['monthly_output_flag'] or
+        data.cet_out['annual_output_flag'] or
+        data.gs_output_flag):
         write_crop_output(crop_count, data, et_cell, crop, foo)
     return True
+
 
 def write_crop_output(crop_count, data, et_cell, crop, foo):
     """Write output files for each cell and crop
@@ -376,7 +380,7 @@ def write_crop_output(crop_count, data, et_cell, crop, foo):
 
     # Build PMET type fieldname from input data (Eto or ETr)
     et_type = data.refet['fields']['etref']
-    pmet_field = 'PM'+et_type
+    pmet_field = 'PM' + et_type
     precip_field = 'PPT'
     etact_field = 'ETact'
     etpot_field = 'ETpot'
@@ -401,9 +405,9 @@ def write_crop_output(crop_count, data, et_cell, crop, foo):
 
     # Merge crop and weather data frames to form daily output
     if (data.cet_out['daily_output_flag'] or
-            data.cet_out['monthly_output_flag'] or
-            data.cet_out['annual_output_flag'] or
-            data.gs_output_flag):
+        data.cet_out['monthly_output_flag'] or
+        data.cet_out['annual_output_flag'] or
+        data.gs_output_flag):
         daily_output_df = pd.merge(
             foo.crop_df, et_cell.climate_df[['ppt']],
             # foo.crop_df, et_cell.climate_df[['ppt', 't30']],
@@ -435,9 +439,9 @@ def write_crop_output(crop_count, data, et_cell, crop, foo):
         monthly_output_df = daily_output_df.resample('MS').apply(
             monthly_resample_func)
         # add effective ppt fractions to monthly tables
-        monthly_output_df[p_rz_fraction_field] =\
-            (monthly_output_df[p_rz_field]/monthly_output_df[precip_field]).fillna(0)
-        monthly_output_df[p_eft_fraction_field] =\
+        monthly_output_df[p_rz_fraction_field] = \
+            (monthly_output_df[p_rz_field] / monthly_output_df[precip_field]).fillna(0)
+        monthly_output_df[p_eft_fraction_field] = \
             (monthly_output_df[p_eft_field] / monthly_output_df[precip_field]).fillna(0)
 
     if data.cet_out['annual_output_flag']:
@@ -453,9 +457,9 @@ def write_crop_output(crop_count, data, et_cell, crop, foo):
         annual_output_df = daily_output_df.resample('AS').apply(
             annual_resample_func)
         # add effective ppt fractions to annual tables
-        annual_output_df[p_rz_fraction_field] =\
+        annual_output_df[p_rz_fraction_field] = \
             (annual_output_df[p_rz_field] / annual_output_df[precip_field]).fillna(0)
-        annual_output_df[p_eft_fraction_field] =\
+        annual_output_df[p_eft_fraction_field] = \
             (annual_output_df[p_eft_field] / annual_output_df[precip_field]).fillna(0)
 
     # Get growing season start and end DOY for each year
@@ -471,7 +475,7 @@ def write_crop_output(crop_count, data, et_cell, crop, foo):
         gs_output_df[gs_end_date_field] = None
         gs_output_df[gs_length_field] = np.nan
         for year_i, (year, group) in enumerate(daily_output_df.groupby(
-                [year_field])):
+            [year_field])):
             if not np.any(group[season_field].values):
                 logging.debug('  Skipping, season flag was never set to 1')
                 continue
@@ -555,7 +559,7 @@ def write_crop_output(crop_count, data, et_cell, crop, foo):
         daily_output_path = os.path.join(
             data.cet_out['daily_output_ws'],
             data.cet_out['name_format'].replace(
-                 '%c', '%02d' % int(crop.class_number)) % et_cell.cell_id)
+                '%c', '%02d' % int(crop.class_number)) % et_cell.cell_id)
 
         # Set output column order
         daily_output_columns = base_columns + [year_field, month_field,
@@ -675,12 +679,13 @@ def write_crop_output(crop_count, data, et_cell, crop, foo):
                         test_doy)), '%Y_%j').date().isoformat()
             except:
                 return 'None'
+
         gs_output_df[gs_start_date_field] = \
             gs_output_df[[year_field, gs_start_doy_field]].apply(
                 lambda s: doy_2_date(*s), axis=1)
         gs_output_df[gs_end_date_field] = gs_output_df[
             [year_field, gs_end_doy_field]].apply(
-                lambda s: doy_2_date(*s), axis=1)
+            lambda s: doy_2_date(*s), axis=1)
         if data.gs_name_format is None:
             # default filename spec
             gs_output_path = os.path.join(
@@ -712,9 +717,9 @@ def write_crop_output(crop_count, data, et_cell, crop, foo):
                              .format(et_cell.cell_id, int(crop.class_number)))
                 return
             gs_start_dt = datetime.datetime.strptime(
-                '2001_{:03d}'. format(gs_start_doy), '%Y_%j')
+                '2001_{:03d}'.format(gs_start_doy), '%Y_%j')
             gs_end_dt = datetime.datetime.strptime(
-                '2001_{:03d}'. format(gs_end_doy), '%Y_%j')
+                '2001_{:03d}'.format(gs_end_doy), '%Y_%j')
             gs_output_f.write(
                 '# Mean Start Date: {dt.month}/{dt.day}  ({doy})\n'.format(
                     dt=gs_start_dt, doy=gs_start_doy))
@@ -725,6 +730,7 @@ def write_crop_output(crop_count, data, et_cell, crop, foo):
                 gs_output_f, sep=',', columns=gs_output_columns,
                 date_format='%Y', index=False)
         del gs_output_df, gs_output_path, gs_output_columns
+
 
 if __name__ == '__main__':
     pass
