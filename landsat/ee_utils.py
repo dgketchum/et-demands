@@ -1,4 +1,4 @@
-from datetime import datetime, timedelta
+from datetime import datetime
 
 import ee
 
@@ -184,6 +184,16 @@ def landsat_composites(year, start, end, roi, append_name, composites_only=False
         bands = bands_means.addBands([ndvi, ndwi, evi, gi])
 
     return bands
+
+
+def is_authorized():
+    try:
+        ee.Initialize()
+        print('Authorized')
+    except Exception as e:
+        print('You are not authorized: {}'.format(e))
+        exit(1)
+    return None
 
 
 if __name__ == '__main__':
