@@ -187,8 +187,8 @@ def corrected_gridmet(fields, gridmet_points, fields_join, gridmet_csv_dir, grid
         df['ea_kpa'] = actual_vapor_pressure(
             df.q_kgkg, df.pair_kpa)
 
-        df['tmax_c'] = df.tmax_k - 273.15  # K to C
-        df['tmin_c'] = df.tmin_k - 273.15  # K to C
+        df['tmax_c'] = df.tmax_k - 273.15
+        df['tmin_c'] = df.tmin_k - 273.15
 
         df = df[COLUMN_ORDER]
         _file = os.path.join(gridmet_csv_dir, 'gridmet_historical_{}.csv'.format(r['GFID']))
