@@ -1,5 +1,6 @@
 import os
 
+import numpy as np
 import pandas as pd
 from tqdm import tqdm
 from datetime import datetime
@@ -58,6 +59,23 @@ CLIMATE_COLS = {
         'var': 'daily_mean_vapor_pressure_deficit',
         'col': 'vpd_kpa'}
 }
+
+COLUMN_ORDER = ['date',
+                'year',
+                'month',
+                'day',
+                'centroid_lat',
+                'centroid_lon',
+                'elev_m',
+                'u2_ms',
+                'tmin_c',
+                'tmax_c',
+                'srad_wm2',
+                'ea_kpa',
+                'pair_kpa',
+                'prcp_mm',
+                'etr_mm',
+                'eto_mm']
 
 
 def export_openet_correction_surfaces():
@@ -131,7 +149,6 @@ def corrected_gridmet(fields, gridmet_points, fields_join, gridmet_csv_dir, grid
         first = True
         for thredds_var, cols in CLIMATE_COLS.items():
             variable = cols['col']
-            print(variable)
             if not thredds_var:
                 continue
             r = gridmet_pts.loc[k]
@@ -141,6 +158,10 @@ def corrected_gridmet(fields, gridmet_points, fields_join, gridmet_csv_dir, grid
             df[variable] = s[thredds_var]
 
             if first:
+                df['date'] = [i.strftime('%Y-%m-%d') for i in df.index]
+                df['year'] = [i.year for i in df.index]
+                df['month'] = [i.month for i in df.index]
+                df['day'] = [i.day for i in df.index]
                 df['centroid_lat'] = [lat for _ in range(df.shape[0])]
                 df['centroid_lon'] = [lat for _ in range(df.shape[0])]
                 g = GridMet('elev', lat=lat, lon=lon)
@@ -153,10 +174,120 @@ def corrected_gridmet(fields, gridmet_points, fields_join, gridmet_csv_dir, grid
             for month in range(1, 13):
                 corr_factor = v[str(month)][_var]
                 idx = [i for i in df.index if i.month == month]
-                df.loc[idx, '{}_corr'.format(variable)] = df.loc[idx, variable] * corr_factor
+                df.loc[idx, '{}_uncorr'.format(variable)] = df.loc[idx, variable]
+                df.loc[idx, variable] = df.loc[idx, '{}_uncorr'.format(variable)] * corr_factor
+                if month == 1:
+                    COLUMN_ORDER.append('{}_uncorr'.format(variable))
 
-        _file = os.path.join(gridmet_csv_dir, '{}_{}.csv'.format(r['GFID'], variable))
-        df.to_csv(_file)
+        zw = 10
+        df['u2_ms'] = wind_height_adjust(
+            df.u10_ms, zw)
+        df['pair_kpa'] = air_pressure(
+            df.elev_m, method='asce')
+        df['ea_kpa'] = actual_vapor_pressure(
+            df.q_kgkg, df.pair_kpa)
+
+        df['tmax_c'] = df.tmax_k - 273.15  # K to C
+        df['tmin_c'] = df.tmin_k - 273.15  # K to C
+
+        df = df[COLUMN_ORDER]
+        _file = os.path.join(gridmet_csv_dir, 'gridmet_historical_{}.csv'.format(r['GFID']))
+        df.to_csv(_file, index=False)
+
+
+# from CGMorton's RefET (github.com/WSWUP/RefET)
+def air_pressure(elev, method='asce'):
+    """Mean atmospheric pressure at station elevation (Eqs. 3 & 34)
+
+    Parameters
+    ----------
+    elev : scalar or array_like of shape(M, )
+        Elevation [m].
+    method : {'asce' (default), 'refet'}, optional
+        Calculation method:
+        * 'asce' -- Calculations will follow ASCE-EWRI 2005 [1] equations.
+        * 'refet' -- Calculations will follow RefET software.
+
+    Returns
+    -------
+    ndarray
+        Air pressure [kPa].
+
+    Notes
+    -----
+    The current calculation in Ref-ET:
+        101.3 * (((293 - 0.0065 * elev) / 293) ** (9.8 / (0.0065 * 286.9)))
+    Equation 3 in ASCE-EWRI 2005:
+        101.3 * (((293 - 0.0065 * elev) / 293) ** 5.26)
+    Per Dr. Allen, the calculation with full precision:
+        101.3 * (((293.15 - 0.0065 * elev) / 293.15) ** (9.80665 / (0.0065 * 286.9)))
+
+    """
+    pair = np.array(elev, copy=True, ndmin=1).astype(np.float64)
+    pair *= -0.0065
+    if method == 'asce':
+        pair += 293
+        pair /= 293
+        np.power(pair, 5.26, out=pair)
+    elif method == 'refet':
+        pair += 293
+        pair /= 293
+        np.power(pair, 9.8 / (0.0065 * 286.9), out=pair)
+    # np.power(pair, 5.26, out=pair)
+    pair *= 101.3
+
+    return pair
+
+
+# from CGMorton's RefET (github.com/WSWUP/RefET)
+def actual_vapor_pressure(q, pair):
+    """"Actual vapor pressure from specific humidity
+
+    Parameters
+    ----------
+    q : scalar or array_like of shape(M, )
+        Specific humidity [kg/kg].
+    pair : scalar or array_like of shape(M, )
+        Air pressure [kPa].
+
+    Returns
+    -------
+    ndarray
+        Actual vapor pressure [kPa].
+
+    Notes
+    -----
+    ea = q * pair / (0.622 + 0.378 * q)
+
+    """
+    ea = np.array(q, copy=True, ndmin=1).astype(np.float64)
+    ea *= 0.378
+    ea += 0.622
+    np.reciprocal(ea, out=ea)
+    ea *= pair
+    ea *= q
+
+    return ea
+
+
+# from CGMorton's RefET (github.com/WSWUP/RefET)
+def wind_height_adjust(uz, zw):
+    """Wind speed at 2 m height based on full logarithmic profile (Eq. 33)
+
+    Parameters
+    ----------
+    uz : scalar or array_like of shape(M, )
+        Wind speed at measurement height [m s-1].
+    zw : scalar or array_like of shape(M, )
+        Wind measurement height [m].
+
+    Returns
+    -------
+    ndarray
+        Wind speed at 2 m height [m s-1].
+
+    """
+    return uz * 4.87 / np.log(67.8 * zw - 5.42)
 
 
 if __name__ == '__main__':
