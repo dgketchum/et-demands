@@ -369,8 +369,11 @@ class GridMet(Thredds):
         if isinstance(date, str):
             self.date = datetime.strptime(date, '%Y-%m-%d')
 
-        if self.start and self.end is None:
-            raise AttributeError('Must set both start and end date')
+        self.variable = variable
+
+        if variable != 'elev':
+            if self.start and self.end is None:
+                raise AttributeError('Must set both start and end date')
 
         self.bbox = bbox
         self.target_profile = target_profile
@@ -383,7 +386,6 @@ class GridMet(Thredds):
 
         self.temp_dir = mkdtemp()
 
-        self.variable = variable
         self.available = ['elev', 'pr', 'rmax', 'rmin', 'sph', 'srad',
                           'th', 'tmmn', 'tmmx', 'pet', 'vs', 'erc', 'bi',
                           'fm100', 'pdsi']
@@ -408,17 +410,19 @@ class GridMet(Thredds):
                        'th': 'daily_mean_wind_direction',
                        'tmmn': 'daily_minimum_temperature',
                        'tmmx': 'daily_maximum_temperature',
-                       'vs': 'daily_mean_wind_speed', }
+                       'vs': 'daily_mean_wind_speed',
+                       'vpd': 'daily_mean_vapor_pressure_deficit'}
 
-        if self.date:
-            self.start = self.date
-            self.end = self.date
+        if variable != 'elev':
+            if self.date:
+                self.start = self.date
+                self.end = self.date
 
-        if self.start.year < self.end.year:
-            self.single_year = False
+            if self.start.year < self.end.year:
+                self.single_year = False
 
-        if self.start > self.end:
-            raise ValueError('start date is after end date')
+            if self.start > self.end:
+                raise ValueError('start date is after end date')
 
         if not self.bbox and not self.lat:
             raise AttributeError('No bbox or coordinates given')
@@ -524,6 +528,15 @@ class GridMet(Thredds):
         df.columns = [self.variable]
         return df
 
+    def get_point_elevation(self):
+
+        url = self._build_url()
+        url = url + '#fillmismatch'
+        xray = open_dataset(url)
+        subset = xray.sel(lon=self.lon, lat=self.lat, method='nearest')
+        elev = subset.get('elevation').values[0]
+        return elev
+
     def _build_url(self):
 
         # ParseResult('scheme', 'netloc', 'path', 'params', 'query', 'fragment')
@@ -547,5 +560,13 @@ class GridMet(Thredds):
         else:
             subset = xray
         subset.to_netcdf(path=outputroot, engine='netcdf4')
+
+
+class BBox(object):
+    def __init__(self, west, east, north, south):
+        self.west = west
+        self.east = east
+        self.north = north
+        self.south = south
 
 # ========================= EOF ====================================================================
