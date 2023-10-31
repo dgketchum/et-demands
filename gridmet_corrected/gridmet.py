@@ -130,6 +130,7 @@ def corrected_gridmet(fields, gridmet_points, fields_join, gridmet_csv_dir, grid
                 closest_geo = g_point['geometry']
 
         fields.at[i, 'GFID'] = closest_fid
+        fields.at[i, 'STATION_ID'] = closest_fid
         if closest_fid not in gridmet_targets.keys():
             gridmet_targets[closest_fid] = {str(m): {} for m in range(1, 13)}
             gdf = gpd.GeoDataFrame({'geometry': [closest_geo]})
@@ -144,9 +145,9 @@ def corrected_gridmet(fields, gridmet_points, fields_join, gridmet_csv_dir, grid
     len_ = len(gridmet_targets.keys())
     print('Get gridmet for {} target points'.format(len_))
     gridmet_pts.index = gridmet_pts['GFID']
-    df = pd.DataFrame()
+
     for k, v in tqdm(gridmet_targets.items(), total=len_):
-        first = True
+        df, first = pd.DataFrame(), True
         for thredds_var, cols in CLIMATE_COLS.items():
             variable = cols['col']
             if not thredds_var:
@@ -163,7 +164,7 @@ def corrected_gridmet(fields, gridmet_points, fields_join, gridmet_csv_dir, grid
                 df['month'] = [i.month for i in df.index]
                 df['day'] = [i.day for i in df.index]
                 df['centroid_lat'] = [lat for _ in range(df.shape[0])]
-                df['centroid_lon'] = [lat for _ in range(df.shape[0])]
+                df['centroid_lon'] = [lon for _ in range(df.shape[0])]
                 g = GridMet('elev', lat=lat, lon=lon)
                 elev = g.get_point_elevation()
                 df['elev_m'] = [elev for _ in range(df.shape[0])]
