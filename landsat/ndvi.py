@@ -17,7 +17,7 @@ sys.setrecursionlimit(5000)
 
 IRR = 'projects/ee-dgketchum/assets/IrrMapper/IrrMapperComp'
 
-L5, L7, L8 = 'LANDSAT/LT05/C02/T1_L2', 'LANDSAT/LE07/C02/T1_L2', 'LANDSAT/LC08/C02/T1_L2'
+L5, L8 = 'LANDSAT/LT05/C02/T1_L2', 'LANDSAT/LC08/C02/T1_L2'
 
 
 def export_ndvi(feature_coll, year=2015, bucket=None, debug=False):
@@ -60,32 +60,40 @@ def export_ndvi(feature_coll, year=2015, bucket=None, debug=False):
         print(_name)
 
 
-def landsat_ndvi_time_series(in_shp, tif_dir, year, out_csv):
+def landsat_ndvi_time_series(in_shp, tif_dir, years, out_csv):
     gdf = gpd.read_file(in_shp)
     gdf.index = gdf['FID']
 
-    file_list, int_dates, doy, dts = get_list_info(tif_dir, year, list_=False)
+    adf, first = None, True
 
-    dt_index = pd.date_range('{}-04-01'.format(year), '{}-10-31'.format(year), freq='D')
-    df = pd.DataFrame(index=dt_index, columns=gdf.index)
+    for yr in years:
 
-    for dt, f in tqdm(zip(dts, file_list), total=len(file_list)):
-        stats = zonal_stats(in_shp, f, stats=['std'], nodata=0.0, categorical=False, all_touched=False)
-        stats = [x['std'] if isinstance(x['std'], float) else np.nan for x in stats]
-        df.loc[dt, :] = stats
+        file_list, int_dates, doy, dts = get_list_info(tif_dir, yr)
 
-    df = df.astype(float).interpolate()
-    df = df.interpolate(method='bfill')
-    df.to_csv(out_csv)
+        dt_index = pd.date_range('{}-04-01'.format(yr), '{}-10-31'.format(yr), freq='D')
+        df = pd.DataFrame(index=dt_index, columns=gdf.index)
+
+        for dt, f in tqdm(zip(dts, file_list), total=len(file_list)):
+            stats = zonal_stats(in_shp, f, stats=['mean'], nodata=0.0, categorical=False, all_touched=False)
+            stats = [x['mean'] if isinstance(x['mean'], float) else np.nan for x in stats]
+            df.loc[dt, :] = stats
+
+        df = df.astype(float).interpolate()
+        df = df.interpolate(method='bfill')
+
+        if first:
+            adf = df.copy()
+            first = False
+        else:
+            adf = pd.concat([adf, df], axis=0, ignore_index=False, sort=True)
+
+    adf.to_csv(out_csv)
 
 
-def get_list_info(tif_dir, year, list_=False):
+def get_list_info(tif_dir, year):
     """ Pass list in place of tif_dir optionally """
-    if list_:
-        l = tif_dir
-    else:
-        l = [os.path.join(tif_dir, x) for x in os.listdir(tif_dir) if
-             x.endswith('.tif') and '_{}'.format(year) in x]
+    l = [os.path.join(tif_dir, x) for x in os.listdir(tif_dir) if
+         x.endswith('.tif') and '_{}'.format(year) in x]
     srt = sorted([x for x in l], key=lambda x: int(x.split('.')[0][-4:]))
     d = [x.split('.')[0][-8:] for x in srt]
     d_numeric = [int(x) for x in d]
@@ -100,21 +108,22 @@ if __name__ == '__main__':
 
     root = '/home/dgketchum/PycharmProjects/et-demands/examples/tongue'
 
-    tif = os.path.join(root, 'landsat', 'ndvi', 'input')
-    yr = 2016
-    out_js = os.path.join(root, 'landsat', 'ndvi', 'merged', '{}.json'.format(yr))
-    shp = os.path.join(root, 'gis', 'tongue_fields_sample.shp')
-    csv_ = os.path.join(root, 'gis', 'tongue_ndvi_sample.csv')
-    landsat_ndvi_time_series(shp, tif, yr, csv_)
-
     fc = ee.FeatureCollection(ee.Feature(ee.Geometry.Polygon([[-105.85544392193924, 46.105576651626485],
                                                               [-105.70747181500565, 46.105576651626485],
                                                               [-105.70747181500565, 46.222566236544104],
                                                               [-105.85544392193924, 46.222566236544104],
                                                               [-105.85544392193924, 46.105576651626485]]),
                                          {'key': 'Tongue_Ex'}))
-    bucket_ = 'wudr'
-    for y in [x for x in range(2016, 2022)]:
-        export_ndvi(fc, y, bucket_, debug=False)
 
+    bucket_ = 'wudr'
+    for y in [x for x in range(1987, 2016)]:
+        # export_ndvi(fc, y, bucket_, debug=False)
+        pass
+
+    tif = os.path.join(root, 'landsat', 'ndvi', 'input')
+    yrs = [x for x in range(2016, 2022)]
+    out_js = os.path.join(root, 'landsat', 'ndvi', 'merged', '{}_{}.json'.format(yrs[0], yrs[-1]))
+    shp = os.path.join(root, 'gis', 'tongue_fields_sample.shp')
+    csv_ = os.path.join(root, 'landsat', 'tongue_ndvi_sample.csv')
+    landsat_ndvi_time_series(shp, tif, yrs, csv_)
 # ========================= EOF ================================================================================
