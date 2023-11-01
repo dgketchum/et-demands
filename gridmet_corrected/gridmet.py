@@ -296,11 +296,4 @@ if __name__ == '__main__':
 
     # export_openet_correction_surfaces()
 
-    rasters_ = os.path.join(d, 'gridmet_corrected', 'correction_surfaces_aea')
-    fields_shp = os.path.join(d, 'examples', 'tongue', 'gis', 'tongue_fields_sample.shp')
-    grimet_cent = os.path.join(d, 'examples', 'tongue', 'gis', 'tongue_gridmet_centroids.shp')
-    fields_out = os.path.join(d, 'examples', 'tongue', 'gis', 'tongue_fields_sample_gfid.shp')
-    gridmet_dst = os.path.join(d, 'examples', 'tongue', 'climate')
-    corrected_gridmet(fields_shp, grimet_cent, fields_out, gridmet_dst, rasters_)
-
 # ========================= EOF ====================================================================
