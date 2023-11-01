@@ -11,17 +11,23 @@ import multiprocessing as mp
 import os
 import sys
 import time
+
 import pandas as pd
 
-import crop_et_data
 import crop_cycle
+
+import obs_crop_et_data
+import crop_et_data
+
 import et_cell
+import obs_et_cell
+
 import util
 
 
 def main(ini_path, log_level=logging.WARNING,
          etcid_to_run='ALL', debug_flag=False,
-         cal_flag=False, mp_procs=1):
+         cal_flag=False, mp_procs=1, observed_flag=False):
     """Main function for running crop ET model
 
     Parameters
@@ -69,7 +75,10 @@ def main(ini_path, log_level=logging.WARNING,
     Initialize CropETData class
 
     """
-    data = crop_et_data.CropETData()
+    if observed_flag:
+        data = obs_crop_et_data.ObsCropETData()
+    else:
+        data = crop_et_data.CropETData()
 
     # Read INI file
     data.read_cet_ini(ini_path, debug_flag)
@@ -88,13 +97,20 @@ def main(ini_path, log_level=logging.WARNING,
     # Crop coefficients are constant for all cells
     # Crop params can vary if CDL data are used but have base parameters
     # File paths are read from INI
-    data.set_crop_params()
-    data.set_crop_coeffs()
+
+    if not observed_flag:
+        data.set_crop_params()
+        data.set_crop_coeffs()
+
     if data.co2_flag:
         data.set_crop_co2()
 
     # Read cell properties, crop flags and cuttings
-    cells = et_cell.ETCellData()
+    if observed_flag:
+        cells = obs_et_cell.ObsETCellData()
+    else:
+        cells = et_cell.ETCellData()
+
     cells.set_cell_properties(data)
     cells.set_cell_crops(data)
     cells.set_cell_cuttings(data)
@@ -369,7 +385,12 @@ def parse_args():
 
 
 if __name__ == '__main__':
-    ini = '/home/dgketchum/PycharmProjects/et-demands/examples/tongue/tongue_example_cet.ini'
+    # ini = '/home/dgketchum/PycharmProjects/et-demands/examples/tongue/tongue_example_cet.ini'
+    # obs_flag = False
+
+    ini = '/home/dgketchum/PycharmProjects/et-demands/examples/tongue/tongue_example_cet_obs.ini'
+    obs_flag = True
+
     logging.basicConfig(level=logging.ERROR)
     overwrite = True
-    main(ini_path=ini, debug_flag=False)
+    main(ini_path=ini, debug_flag=False, observed_flag=obs_flag)
