@@ -15,6 +15,7 @@ import time
 import pandas as pd
 
 import crop_cycle
+import obs_field_cycle
 
 import obs_crop_et_data
 import crop_et_data
@@ -110,17 +111,16 @@ def main(ini_path, log_level=logging.WARNING,
         cells = obs_et_cell.ObsETCellData()
     else:
         cells = et_cell.ETCellData()
+        cells.set_cell_crops(data)
+        cells.filter_crops(data)
+        cells.filter_cells(data)
+        # First apply static crop parameters to all cells
+        # Could "cell" just inherit "data" values instead ????
+        cells.set_static_crop_params(data.crop_params)
+        cells.set_static_crop_coeffs(data.crop_coeffs)
 
     cells.set_cell_properties(data)
-    cells.set_cell_crops(data)
     cells.set_cell_cuttings(data)
-    cells.filter_crops(data)
-    cells.filter_cells(data)
-
-    # First apply static crop parameters to all cells
-    # Could "cell" just inherit "data" values instead ????
-    cells.set_static_crop_params(data.crop_params)
-    cells.set_static_crop_coeffs(data.crop_coeffs)
 
     # Read spatially varying crop parameters
     if data.spatial_cal_flag:
@@ -189,7 +189,11 @@ def main(ini_path, log_level=logging.WARNING,
                 logging.warning('CellID: {}'.format(cell_id))
                 if not cell.set_input_timeseries(cell_count, data, cells):
                     sys.exit()
-                crop_cycle.crop_cycle(data, cell, debug_flag=debug_flag)
+
+                if observed_flag:
+                    obs_field_cycle.crop_cycle(data, cell, debug_flag=debug_flag)
+                else:
+                    crop_cycle.crop_cycle(data, cell, debug_flag=debug_flag)
 
     # Multiprocess all cells
     results = []
