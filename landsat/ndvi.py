@@ -1,5 +1,6 @@
 import os
 import sys
+import json
 from datetime import datetime
 from tqdm import tqdm
 
@@ -8,7 +9,11 @@ import numpy as np
 import pandas as pd
 import geopandas as gpd
 
+import matplotlib.pyplot as plt
+
 from rasterstats import zonal_stats
+
+from detecta import detect_peaks, detect_cusum
 
 from landsat.ee_utils import landsat_masked, is_authorized
 
@@ -36,7 +41,7 @@ def export_ndvi(feature_coll, year=2015, bucket=None, debug=False):
     for img_id in scenes:
         splt = img_id.split('_')
         doy = int(datetime.strptime(splt[-1], '%Y%m%d').strftime('%j'))
-        if not 91 < doy < 304:
+        if 91 < doy < 304:
             continue
         _name = '_'.join(splt[-3:])
 
@@ -68,7 +73,7 @@ def landsat_ndvi_time_series(in_shp, tif_dir, years, out_csv):
 
     for yr in years:
 
-        file_list, int_dates, doy, dts = get_list_info(tif_dir, yr)
+        file_list, dts = get_list_info(tif_dir, yr)
 
         dt_index = pd.date_range('{}-04-01'.format(yr), '{}-10-31'.format(yr), freq='D')
         df = pd.DataFrame(index=dt_index, columns=gdf.index)
@@ -94,13 +99,92 @@ def get_list_info(tif_dir, year):
     """ Pass list in place of tif_dir optionally """
     l = [os.path.join(tif_dir, x) for x in os.listdir(tif_dir) if
          x.endswith('.tif') and '_{}'.format(year) in x]
-    srt = sorted([x for x in l], key=lambda x: int(x.split('.')[0][-4:]))
-    d = [x.split('.')[0][-8:] for x in srt]
-    d_numeric = [int(x) for x in d]
-    dstr = ['{}-{}-{}'.format(x[:4], x[4:6], x[-2:]) for x in d]
-    dates_ = [pd.to_datetime(x) for x in dstr]
-    doy = [int(dt.strftime('%j')) for dt in dates_]
-    return l, d_numeric, doy, dates_
+    dt_str = [f[-12:-4] for f in l]
+    dates_ = [pd.to_datetime(d, format='%Y%m%d') for d in dt_str]
+    tup_ = sorted([(f, d) for f, d in zip(l, dates_)], key=lambda x: x[1])
+    l, dates_ = [t[0] for t in tup_], [t[1] for t in tup_]
+    return l, dates_
+
+
+def plot_ndvi(csv, plot_dir):
+    adf = pd.read_csv(csv, index_col=0, parse_dates=True, infer_datetime_format=True)
+    cols = list(adf.columns)
+    years = list(set([i.year for i in adf.index]))
+
+    for c in cols:
+        df = adf[[c]]
+        df['date'] = df.index
+        df['year'] = df.date.dt.year
+        df['date'] = df.date.dt.strftime('%m-%d')
+        df.index = [x for x in range(0, df.shape[0])]
+        df = df.set_index(['year', 'date'])[c].unstack(-2)
+        df.dropna(axis=1, how='all', inplace=True)
+
+        colors = ['#' + ''.join(np.random.choice(list('0123456789ABCDEF'), size=6)) for _ in df.columns]
+        ax = df.plot(logy=False, legend=False, alpha=0.8, color=colors, ylabel='NDVI',
+                     title='NDVI {} - {}'.format(years[0], years[-1]), figsize=(30, 10))
+
+        df = df.loc[df.index != '02-29']
+        df.dropna(how='any', axis=1, inplace=True)
+
+        _file = os.path.join(plot_dir, 'ndvi_{}.png'.format(c))
+        plt.savefig(_file)
+        # plt.show()
+        print(_file)
+
+
+def detect_cuttings(csv, out_json):
+    adf = pd.read_csv(csv, index_col=0, parse_dates=True, infer_datetime_format=True)
+    cols = list(adf.columns)
+    diff = adf.diff()
+    years = list(set([i.year for i in adf.index]))
+
+    fields = {c: {} for c in cols}
+    for c in cols:
+        count, fallow = [], []
+
+        for yr in years:
+
+            df = adf.loc['{}-01-01'.format(yr): '{}-12-31'.format(yr), [c]]
+            vals = df.values
+            try:
+                y_change = detect_cusum(vals, threshold=300, ending=False, drift=5, show=False)
+            except ValueError:
+                print(yr, c)
+                continue
+            if len(y_change[0]) == 0:
+                fallow.append(yr)
+                continue
+            peaks, inflections = y_change[1], y_change[0]
+            inflect_dates = [df.index[i] for i in inflections]
+            irr_dates, cut_dates, pk_dates = [], [], []
+
+            for j, (i, p) in enumerate(zip(inflections, peaks)):
+
+                sign = diff.loc[diff.index[p], c]
+                if sign < 0:
+                    dt = df.index[p]
+                    pk_dates.append((p.item(), '{}-{}'.format(dt.month, dt.day)))
+
+                sign = diff.loc[diff.index[i], c]
+
+                if sign < 0:
+                    dt = inflect_dates[j]
+                    cut_dates.append((i.item(), '{}-{}'.format(dt.month, dt.day)))
+                else:
+                    dt = inflect_dates[j]
+                    irr_dates.append((i.item(), '{}-{}'.format(dt.month, dt.day)))
+
+            count.append(len(pk_dates))
+            fields[c][yr] = {'pk_count': len(pk_dates), 'peak_dates': pk_dates,
+                             'irr_dates': irr_dates, 'cut_dates': cut_dates}
+
+        avg_ct = np.array(count).mean()
+        fields[c]['average_cuttings'] = float(avg_ct)
+        fields[c]['fallow_years'] = fallow
+
+    with open(out_json, 'w') as fp:
+        json.dump(fields, fp, indent=4)
 
 
 if __name__ == '__main__':
@@ -116,14 +200,20 @@ if __name__ == '__main__':
                                          {'key': 'Tongue_Ex'}))
 
     bucket_ = 'wudr'
-    for y in [x for x in range(1987, 2016)]:
+    for y in [x for x in range(1987, 2022)]:
         # export_ndvi(fc, y, bucket_, debug=False)
         pass
 
     tif = os.path.join(root, 'landsat', 'ndvi', 'input')
-    yrs = [x for x in range(2016, 2022)]
+    yrs = [x for x in range(1987, 2022)]
     out_js = os.path.join(root, 'landsat', 'ndvi', 'merged', '{}_{}.json'.format(yrs[0], yrs[-1]))
     shp = os.path.join(root, 'gis', 'tongue_fields_sample.shp')
-    csv_ = os.path.join(root, 'landsat', 'tongue_ndvi_sample.csv')
-    landsat_ndvi_time_series(shp, tif, yrs, csv_)
+    csv_ = os.path.join(root, 'landsat', 'tongue_ndvi_sample_.csv')
+    # landsat_ndvi_time_series(shp, tif, yrs, csv_)
+
+    plot_dir_ = './plots'
+    # plot_ndvi(csv_, plot_dir_)
+
+    js_ = os.path.join(root, 'landsat', 'tongue_ndvi_cuttings.json')
+    detect_cuttings(csv_, js_)
 # ========================= EOF ================================================================================
