@@ -191,7 +191,7 @@ def main(ini_path, log_level=logging.WARNING,
                     sys.exit()
 
                 if observed_flag:
-                    obs_field_cycle.crop_cycle(data, cell, debug_flag=debug_flag)
+                    obs_field_cycle.field_day_loop(data, cell, debug_flag=debug_flag)
                 else:
                     crop_cycle.crop_cycle(data, cell, debug_flag=debug_flag)
 

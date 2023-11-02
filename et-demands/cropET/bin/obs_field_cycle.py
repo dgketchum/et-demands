@@ -37,109 +37,8 @@ class DayData:
         self.etref_array = np.zeros(30)
 
 
-def crop_cycle_mp(data, et_cell, mp_procs=1):
-    """Compute crop et for all crops using multiprocessing
-
-    Parameters
-    ---------
-    data :
-
-    et_cell :
-
-    mp_procs :
-        number of cores to use for multiprocessing
-
-    Returns
-    -------
-    None
-
-    Notes
-    -----
-    crop_day_loop_mp() will unpack arguments and call crop_day_loop()
-
-    """
-
-    crop_count = 0
-    crop_mp_list = []
-    for crop_num, crop in sorted(et_cell.crop_params.items()):
-        if et_cell.crop_flags[crop_num] != 0:
-            # Force debug_flag false when multiprocessing
-            crop_count += 1
-            crop_mp_list.append([crop_count, data, et_cell, crop, False,
-                                 mp_procs])
-    results = []
-    if crop_mp_list:
-        pool = mp.Pool(mp_procs)
-        results = pool.imap(crop_day_loop_mp, crop_mp_list, chunksize=1)
-        pool.close()
-        pool.join()
-        del pool, results
-
-
-def crop_cycle(data, et_cell, debug_flag=False, mp_procs=1):
-    """Compute crop ET for all crops
-
-    Args:
-        data ():
-        et_cell ():
-        debug_flag (bool): If True, write debug level comments to debug.txt
-
-    Returns:
-        None
-    """
-    crop_count = 0
-    for crop_num, crop in sorted(et_cell.crop_params.items()):
-        try:
-            if et_cell.crop_flags[crop_num] == 0:
-                if debug_flag:
-                    logging.debug('Crop %2d %s' % (crop_num, crop.name))
-                    logging.debug('  NOT USED')
-                continue
-            crop_count += 1
-            crop_day_loop(crop_count, data, et_cell, crop, debug_flag, mp_procs)
-        except KeyError:
-            logging.warning('Crop %2d %s' % (crop_num, crop.name))
-            logging.warning(' KEYERROR NOT USED')
-
-
-def crop_day_loop_mp(tup):
-    """Compute crop et for each daily timestep using multiprocessing
-
-
-    mp.Pool needs all inputs are packed into single tuple
-    Tuple is unpacked and and single processing version of function is called
-
-    Parameters
-    ---------
-    crop_count : int
-        count of crop being computed
-    data :
-
-    et_cell :
-
-    crop :
-
-    debug_flag : boolean
-        True : write debug level comments to debug.txt
-        False
-    mp_procs : int
-        number of cores to use for multiprocessing
-
-    Returns
-    -------
-
-    Notes
-    -----
-    Calls crop_day_loop
-
-    """
-
-    return crop_day_loop(*tup)
-
-
-def crop_day_loop(crop_count, data, et_cell, crop, debug_flag=False,
-                  mp_procs=1):
-    """Compute crop et for each daily timestep
+def field_day_loop(crop_count, data, et_cell, crop, debug_flag=False):
+    """Compute crop et for each daily timestep at a field
 
     Parameters
     ---------
@@ -170,9 +69,7 @@ def crop_day_loop(crop_count, data, et_cell, crop, debug_flag=False,
 
     """
 
-    func_str = 'crop_day_loop()'
-    if mp_procs == 1:
-        logging.warning('Crop {} - {}'.format(crop.class_number, crop.name))
+    func_str = 'field_day_loop()'
     if debug_flag:
         logging.debug(
             '{}:  Curve {} {}  Class {}  Flag {}'.format(
