@@ -37,7 +37,7 @@ class DayData:
         self.etref_array = np.zeros(30)
 
 
-def field_day_loop(crop_count, data, et_cell, crop, debug_flag=False):
+def field_day_loop(data, et_cell, crop, debug_flag=False):
     """Compute crop et for each daily timestep at a field
 
     Parameters
@@ -78,6 +78,7 @@ def field_day_loop(crop_count, data, et_cell, crop, debug_flag=False):
         logging.debug('  GDD trigger DOY: {}'.format(crop.gdd_trigger_doy))
 
     # 'foo' is holder of all these global variables for now
+    # TODO: override foo
     foo = InitializeCropCycle()
 
     # First time through for crop, load basic crop parameters and

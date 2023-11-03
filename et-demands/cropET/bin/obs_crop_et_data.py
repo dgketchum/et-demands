@@ -16,7 +16,7 @@ import crop_parameters
 import util
 
 
-class ObsCropETData:
+class ObsFieldETData:
     """Crop et data container
 
     Attributes
@@ -1114,67 +1114,6 @@ class ObsCropETData:
                          'currently supported').format(k, v))
                     sys.exit()
 
-    def set_crop_params(self):
-        """ List of <CropParameter> instances
-
-        Parameters
-        ---------
-        None
-
-        Returns
-        -------
-        None
-
-        """
-
-        logging.info('  Reading crop parameters from\n' + self.crop_params_path)
-
-        params_df = pd.read_csv(self.crop_params_path,
-                                  delimiter=self.crop_params_delimiter,
-                                  header=None,
-                                  skiprows=self.crop_params_header_lines - 1,
-                                  na_values=['NaN'])
-        params_df.applymap(str)
-        params_df.fillna('0', inplace=True)
-        self.crop_params = {}
-        for crop_i in range(2, len(list(params_df.columns))):
-            crop_param_data = params_df[crop_i].values.astype(str)
-            crop_num = abs(int(crop_param_data[1]))
-            self.crop_params[crop_num] = \
-                crop_parameters.CropParameters(crop_param_data)
-
-        # Filter crop parameters based on skip and test lists
-        # Filtering could happen in read_crop_parameters()
-
-        if self.crop_skip_list or self.crop_test_list:
-            # Leave bare soil "crop" parameters
-            # Used in initialize_crop_cycle()
-
-            non_crop_list = [44]
-            # non_crop_list = [44,45,46,55,56,57]
-            self.crop_params = {
-                k: v for k, v in self.crop_params.items()
-                if ((self.crop_skip_list and k not in self.crop_skip_list) or
-                    (self.crop_test_list and k in self.crop_test_list) or
-                    (k in non_crop_list))}
-
-    def set_crop_coeffs(self):
-        """ List of <CropCoeff> instances
-
-        Parameters
-        ---------
-        None
-
-        Returns
-        -------
-        None
-
-        """
-
-        logging.info('  Reading crop coefficients')
-        self.crop_coeffs = \
-            crop_coefficients.read_crop_coefs_txt(self)
-
     def set_crop_co2(self):
         """Set crop CO2 type using values in INI
 
@@ -1202,26 +1141,3 @@ class ObsCropETData:
                                 ' lists'.format(crop_num))
                 crop_param.co2_type = None
             self.crop_params[crop_num] = crop_param
-
-def console_logger(logger=logging.getLogger(''), log_level=logging.INFO):
-    # Create console logger
-    logger.setLevel(log_level)
-    log_console = logging.StreamHandler(stream=sys.stdout)
-    log_console.setLevel(log_level)
-    log_console.setFormatter(logging.Formatter('%(message)s'))
-    logger.addHandler(log_console)
-    return logger
-
-# CHECK THAT INI USED IN TESTS EXISTS AND IS UP TO DATE
-def do_tests():
-    # Simple testing of functions as developed
-    # logger = console_logger(log_level = 'DEBUG')
-    logger = console_logger(log_level=logging.DEBUG)
-    ini_path = os.getcwd() + os.sep + "cet_template.ini"
-    cfg = CropETData()
-    cfg.read_cet_ini(ini_path, True)
-
-
-if __name__ == '__main__':
-    # testing during development
-    do_tests()

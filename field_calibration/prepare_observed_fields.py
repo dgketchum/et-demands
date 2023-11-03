@@ -34,15 +34,23 @@ def prepare_fields_properties(met_fields, soils, fields_out):
     fields['HYDGRP_NUM'] = None
     fields['HYDGRP'] = None
 
+    # these appear to be defaults
+    fields['aridity_rating'] = [50 for _ in range(fields.shape[0])]
+    fields['soil_depth'] = [60 for _ in range(fields.shape[0])]
+    fields['permeability'] = [-999 for _ in range(fields.shape[0])]
+
     for fid, row in fields.iterrows():
         if row['SAND'] > 50:
-            row['HYDGRP_NUM'], row['HYDGRP'] = 1, 'A'
+            fields.loc[fid, 'HYDGRP_NUM'], fields.loc[fid, 'HYDGRP'] = 1, 'A'
         elif row['CLAY'] > 40:
-            row['HYDGRP_NUM'], row['HYDGRP'] = 3, 'C'
+            fields.loc[fid, 'HYDGRP_NUM'], fields.loc[fid, 'HYDGRP'] = 3, 'C'
         else:
-            row['HYDGRP_NUM'], row['HYDGRP'] = 2, 'B'
+            fields.loc[fid, 'HYDGRP_NUM'], fields.loc[fid, 'HYDGRP'] = 2, 'B'
 
-    fields.to_file(fields_out)
+    fields.to_file(fields_out, index=False)
+    fields.drop(columns=['geometry'], inplace=True)
+    fields = pd.DataFrame(fields)
+    fields.to_csv(fields_out.replace('.shp', '.csv'))
 
 
 def join_gridmet_remote_sensing_daily(fields, gridmet_dir, ndvi, et_data, dst_dir):
@@ -98,15 +106,15 @@ if __name__ == '__main__':
 
     fields_gridmet = os.path.join(d, 'examples', 'tongue', 'gis', 'tongue_fields_sample_gfid.shp')
     gridmet_ = os.path.join(d, 'examples', 'tongue', 'climate')
-    ndvi_ = os.path.join(d, 'landsat', 'tongue_ndvi_sample.csv')
+    ndvi_ = os.path.join(d, 'examples', 'tongue', 'landsat', 'tongue_ndvi_sample.csv')
     et_data_ = '/media/research/IrrigationGIS/Montana/tongue/all_data.csv'
     dst_dir_ = os.path.join(d, 'examples', 'tongue', 'field_daily')
-    # join_gridmet_remote_sensing_daily(fields_gridmet, gridmet_, ndvi_, et_data_, dst_dir_)
+    join_gridmet_remote_sensing_daily(fields_gridmet, gridmet_, ndvi_, et_data_, dst_dir_)
 
     fields_gridmet = os.path.join(d, 'examples', 'tongue', 'gis', 'tongue_fields_sample_gfid.shp')
     fields_props = os.path.join(d, 'examples', 'tongue', 'static', 'obs', 'tongue_fields_properties.shp')
-    soils_ = os.path.join(d, 'examples', 'tongue', 'gis', 'soils')
-
-    prepare_fields_properties(fields_gridmet, soils_, fields_props)
+    soils_ = os.path.join(d, 'examples', 'tongue', 'gis', 'soils_aea')
+    # TODO: write ndvi series to a separate file, or read the entire climate/ndvi file into the ObsCellET object
+    # prepare_fields_properties(fields_gridmet, soils_, fields_props)
 
 # ========================= EOF ====================================================================
