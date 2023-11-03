@@ -8,6 +8,7 @@ from datetime import datetime
 import ee
 import geopandas as gpd
 from rasterstats import zonal_stats
+import pyproj
 
 from landsat.ee_utils import is_authorized
 from gridmet_corrected.thredds import GridMet, BBox
@@ -139,6 +140,10 @@ def corrected_gridmet(fields, gridmet_points, fields_join, gridmet_csv_dir, grid
                 _var, month = splt[-2], splt[-1].replace('.tif', '')
                 stats = zonal_stats(gdf, r, stats=['mean'])[0]['mean']
                 gridmet_targets[closest_fid][month].update({_var: stats})
+
+        g = GridMet('elev', lat=field['LAT'], lon=field['LON'])
+        elev = g.get_point_elevation()
+        fields.at[i, 'ELEV'] = elev
 
     fields.to_file(fields_join, crs='EPSG:5071')
 

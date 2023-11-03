@@ -159,34 +159,6 @@ class ObsETCell(ETCell):
             print(logging.error('Unable to read parameter'))
             return False
 
-    def init_crops_from_row(self, data, crop_numbers):
-        """Parse row of data
-
-        Parameters
-        ---------
-        data : dict
-            configuration data from INI file
-        crop_numbers :
-
-
-        Returns
-        -------
-        None
-
-        Notes
-        -----
-        Code exists in kcb_daily to adjust cgdd_term using crop flag as a
-         multiplier.
-        This code is currently commented out and crop_flags are being read in
-         as booleans.
-
-        """
-
-        self.irrigation_flag = int(data[3])
-        self.crop_flags = dict(zip(crop_numbers, data[4:].astype(bool)))
-        # self.crop_flags = dict(zip(crop_numbers, data[4:]))
-        self.ncrops = len(self.crop_flags)
-
     def set_input_timeseries(self, cell_count, data, cells):
         """Wrapper for setting all refet and met data
 
@@ -213,7 +185,12 @@ class ObsETCell(ETCell):
             return False
         # Process climate arrays
         self.process_climate(data)
+        self.set_field_crop_coeffs(data)
         return True
+
+    def set_field_crop_coeffs(self, data):
+        raise NotImplementedError
+
 
 
 if __name__ == '__main__':

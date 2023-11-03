@@ -76,133 +76,52 @@ def main(ini_path, log_level=logging.WARNING,
     Initialize CropETData class
 
     """
+
     if observed_flag:
-        data = obs_crop_et_data.ObsCropETData()
+        data = obs_crop_et_data.ObsFieldETData()
+        data.read_cet_ini(ini_path, debug_flag)
+        cells = obs_et_cell.ObsETCellData()
+        cells.set_cell_properties(data)
+        cells = obs_et_cell.ObsETCellData()
+        cells.set_cell_properties(data)
+
     else:
         data = crop_et_data.CropETData()
-
-    # Read INI file
-    data.read_cet_ini(ini_path, debug_flag)
-
-    # Start file logging once INI file has been read
-    if debug_flag:
-        logger = util.file_logger(
-            logger, log_level=logging.DEBUG, output_ws=data.project_ws)
-
-    # Growing season summary CSV files must be written
-    if cal_flag:
-        logging.warning('  Setting growing_season_stats_flag = True')
-        data.gs_output_flag = True
-
-    # Read crop type (aka class) specific parameters and coefficients
-    # Crop coefficients are constant for all cells
-    # Crop params can vary if CDL data are used but have base parameters
-    # File paths are read from INI
-
-    if not observed_flag:
+        data.read_cet_ini(ini_path, debug_flag)
         data.set_crop_params()
         data.set_crop_coeffs()
+        cells = et_cell.ETCellData()
+        cells.set_cell_properties(data)
+        cells.set_cell_crops(data)
+        cells.filter_crops(data)
+        cells.filter_cells(data)
+
+        cells.set_static_crop_params(data.crop_params)
+        cells.set_static_crop_coeffs(data.crop_coeffs)
 
     if data.co2_flag:
         data.set_crop_co2()
 
-    # Read cell properties, crop flags and cuttings
-    if observed_flag:
-        cells = obs_et_cell.ObsETCellData()
-    else:
-        cells = et_cell.ETCellData()
-        cells.set_cell_crops(data)
-        cells.filter_crops(data)
-        cells.filter_cells(data)
-        # First apply static crop parameters to all cells
-        # Could "cell" just inherit "data" values instead ????
-        cells.set_static_crop_params(data.crop_params)
-        cells.set_static_crop_coeffs(data.crop_coeffs)
+    if cal_flag:
+        logging.warning('  Setting growing_season_stats_flag = True')
+        data.gs_output_flag = True
 
-    cells.set_cell_properties(data)
     cells.set_cell_cuttings(data)
 
-    # Read spatially varying crop parameters
-    if data.spatial_cal_flag:
-        cells.set_spatial_crop_params(data.spatial_cal_ws)
-
-    # print(cells.et_cells_dict['1067'])
-    # print(cells.et_cells_dict['1067'].crop_params)
-    # print(cells.et_cells_dict['1067'].crop_params[40])
-    # sys.exit()
-    # Multiprocessing logic
-    # If cell count is low, process crops in parallel
-    # If cell count is high, process cells in parallel (crops in serial)
-
-    cell_mp_list, cell_mp_flag, crop_mp_flag = [], False, False
-    if mp_procs > 1:
-        logging.warning("\nSetting multiprocessing logic")
-        # if data.cet_out['data_structure_type'].upper() == 'RDB':
-        #     logging.warning("  Multiprocessing is not available for RDB output")
-        #     mp_procs = 1
-        # else:
-        if etcid_to_run == 'ALL':
-            cells_count = len(cells.et_cells_dict.keys())
-            crops_count = len(cells.crop_num_list)
-            logging.warning('  Cell count: {}'.format(cells_count))
-            logging.warning('  Crop count: {}'.format(crops_count))
-
-            # 0.5 multiplier is to prefer multiprocessing by cell
-            # because of 1 CPU time spent loading/processing weather data
-            # when multiprocessing by crop
-
-            # # Force cell_mp__flag to True for testing
-            # logging.warning("  Multiprocessing by cell")
-            # cell_mp_flag = True
-
-            if (0.5 * cells_count) > crops_count:
-                logging.warning("  Multiprocessing by cell")
-                cell_mp_flag = True
-            else:
-                logging.warning("  Multiprocessing by crop")
-                crop_mp_flag = True
-        else:
-            logging.warning("  Multiprocessing by crop")
-            crop_mp_flag = True
-
-    """
-    Loop through et cells
-
-    """
-    logging.warning("")
     cell_count = 0
     for cell_id, cell in sorted(cells.et_cells_dict.items()):
         if etcid_to_run == 'ALL' or etcid_to_run == cell_id:
             logging.info('\nProcessing node id' + cell_id + ' with name ' +
                          cell.cell_name)
             cell_count += 1
-            if cell_mp_flag:
-                # Multiprocessing by cell
-                cell_mp_list.append([cell_count, data, cell, mp_procs])
-            elif crop_mp_flag:
-                # Multiprocessing by crop
-                logging.warning('CellID: {}'.format(cell_id))
-                if not cell.set_input_timeseries(cell_count, data, cells):
-                    sys.exit()
-                crop_cycle.crop_cycle_mp(data, cell, mp_procs=mp_procs)
+
+            cell.set_input_timeseries(cell_count, data, cells)
+
+            if observed_flag:
+                cell.set_field_crop_coeffs(data)
+                obs_field_cycle.field_day_loop(data, et_cell, debug_flag=debug_flag)
             else:
-                logging.warning('CellID: {}'.format(cell_id))
-                if not cell.set_input_timeseries(cell_count, data, cells):
-                    sys.exit()
-
-                if observed_flag:
-                    obs_field_cycle.field_day_loop(data, cell, debug_flag=debug_flag)
-                else:
-                    crop_cycle.crop_cycle(data, cell, debug_flag=debug_flag)
-
-    # Multiprocess all cells
-    results = []
-    if cell_mp_list:
-        pool = mp.Pool(mp_procs)
-        results = pool.imap(cell_mp, cell_mp_list, chunksize=1)
-        pool.close()
-        pool.join()
-        del pool, results
+                crop_cycle.crop_cycle(data, cell, debug_flag=debug_flag)
 
     logging.warning('\nCROPET Run Completed')
     logging.info('\n{} seconds'.format(time.perf_counter() - clock_start))
@@ -389,11 +308,13 @@ def parse_args():
 
 
 if __name__ == '__main__':
-    # ini = '/home/dgketchum/PycharmProjects/et-demands/examples/tongue/tongue_example_cet.ini'
-    # obs_flag = False
 
-    ini = '/home/dgketchum/PycharmProjects/et-demands/examples/tongue/tongue_example_cet_obs.ini'
     obs_flag = True
+
+    if obs_flag:
+        ini = '/home/dgketchum/PycharmProjects/et-demands/examples/tongue/tongue_example_cet_obs.ini'
+    else:
+        ini = '/home/dgketchum/PycharmProjects/et-demands/examples/tongue/tongue_example_cet.ini'
 
     logging.basicConfig(level=logging.ERROR)
     overwrite = True
