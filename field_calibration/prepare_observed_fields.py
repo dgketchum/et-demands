@@ -1,4 +1,5 @@
 import os
+import json
 
 import numpy as np
 import pandas as pd
@@ -53,7 +54,7 @@ def prepare_fields_properties(met_fields, soils, fields_out):
     fields.to_csv(fields_out.replace('.shp', '.csv'))
 
 
-def join_gridmet_remote_sensing_daily(fields, gridmet_dir, ndvi, et_data, dst_dir):
+def join_gridmet_remote_sensing_daily(fields, gridmet_dir, ndvi, ndvi_dst, et_data, dst_dir):
     ndvi = pd.read_csv(ndvi, index_col=0, infer_datetime_format=True, parse_dates=True)
     start, end = ndvi.index[0], ndvi.index[-1]
     years = list(set([i.year for i in ndvi.index]))
@@ -89,16 +90,50 @@ def join_gridmet_remote_sensing_daily(fields, gridmet_dir, ndvi, et_data, dst_di
         gridmet['eta_o_mm'] = fractional['eto_mm'] * et['et'].values * 1000
         gridmet.loc[ndvi.index, 'NDVI'] = ndvi[str(f)] / 1000
 
+        ndvi_field = gridmet[['NDVI']].copy()
+        nd_file = os.path.join(ndvi_dst, '{}_daily.csv'.format(f))
+        ndvi_field.to_csv(nd_file)
+
         _file = os.path.join(dst_dir, '{}_daily.csv'.format(f))
         gridmet.to_csv(_file)
         print(_file)
+
+
+def prep_fields_crops(cdl, crosswalk_path, out):
+
+    dct = {}
+
+    df = pd.read_csv(cdl)
+    df.index = df['FID']
+    cols = [c for c in df.columns if 'crop' in c]
+    years = [int(c.split('_')[1]) for c in cols]
+    df = df[cols].astype(int)
+
+    cross_df = pd.read_csv(crosswalk_path)
+    cross_dict = dict()
+    for index, row in cross_df.iterrows():
+        cross_dict[row.cdl_no] = list(map(int, str(row.etd_no).split(',')))
+
+    for fid, crops in df.iterrows():
+        etd = []
+        for v in crops.values:
+            try:
+                etd.append(int(cross_dict[v][0]))
+            except KeyError:
+                etd.append(0)
+
+        dct[fid] = {'cdl': [v.item() for v in crops.values], 'years': years,
+                    'etd': etd}
+
+    with open(out, 'w') as fp:
+        json.dump(dct, fp, indent=4)
 
 
 if __name__ == '__main__':
     d = '/home/dgketchum/PycharmProjects/et-demands'
 
     rasters_ = os.path.join(d, 'gridmet_corrected', 'correction_surfaces_aea')
-    fields_shp = os.path.join(d, 'examples', 'tongue', 'gis', 'tongue_fields_simple.shp')
+    fields_shp = os.path.join(d, 'examples', 'tongue', 'gis', 'tongue_fields_sample.shp')
     grimet_cent = os.path.join(d, 'examples', 'tongue', 'gis', 'tongue_gridmet_centroids.shp')
     fields_gridmet = os.path.join(d, 'examples', 'tongue', 'gis', 'tongue_fields_sample_gfid.shp')
     gridmet_dst = os.path.join(d, 'examples', 'tongue', 'climate')
@@ -107,14 +142,20 @@ if __name__ == '__main__':
     fields_gridmet = os.path.join(d, 'examples', 'tongue', 'gis', 'tongue_fields_sample_gfid.shp')
     gridmet_ = os.path.join(d, 'examples', 'tongue', 'climate')
     ndvi_ = os.path.join(d, 'examples', 'tongue', 'landsat', 'tongue_ndvi_sample.csv')
+    ndvi_out = os.path.join(d, 'examples', 'tongue', 'landsat', 'ndvi', 'field_daily')
     et_data_ = '/media/research/IrrigationGIS/Montana/tongue/all_data.csv'
     dst_dir_ = os.path.join(d, 'examples', 'tongue', 'field_daily')
-    join_gridmet_remote_sensing_daily(fields_gridmet, gridmet_, ndvi_, et_data_, dst_dir_)
+    # join_gridmet_remote_sensing_daily(fields_gridmet, gridmet_, ndvi_, ndvi_out, et_data_, dst_dir_)
 
     fields_gridmet = os.path.join(d, 'examples', 'tongue', 'gis', 'tongue_fields_sample_gfid.shp')
     fields_props = os.path.join(d, 'examples', 'tongue', 'static', 'obs', 'tongue_fields_properties.shp')
     soils_ = os.path.join(d, 'examples', 'tongue', 'gis', 'soils_aea')
     # TODO: write ndvi series to a separate file, or read the entire climate/ndvi file into the ObsCellET object
     # prepare_fields_properties(fields_gridmet, soils_, fields_props)
+
+    cdl_ = os.path.join(d, 'examples', 'tongue', 'static', 'obs', 'tongue_sample_cdl.csv')
+    cross_ = os.path.join(d, 'et-demands/prep/cdl_crosswalk_default.csv')
+    out_ = os.path.join(d, 'examples', 'tongue', 'static', 'obs', 'tongue_sample_field_crops.json')
+    prep_fields_crops(cdl_, cross_, out_)
 
 # ========================= EOF ====================================================================
