@@ -10,7 +10,7 @@ import geopandas as gpd
 from rasterstats import zonal_stats
 import pyproj
 
-from landsat.ee_utils import is_authorized
+from ee_api.ee_utils import is_authorized
 from gridmet_corrected.thredds import GridMet, BBox
 
 CRS_TRANSFORM = [0.041666666666666664,

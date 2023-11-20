@@ -13,6 +13,7 @@ import util
 import grow_root
 import runoff
 
+
 def compute_crop_et(data, et_cell, crop, foo, foo_day, debug_flag=False):
     """Crop et computations
 
@@ -67,7 +68,7 @@ def compute_crop_et(data, et_cell, crop, foo, foo_day, debug_flag=False):
             kc_max += crop.kc_max
         else:
             kc_max += 1.2
-    elif data.refet['type'] == 'etr':    # edited by Allen, 6/8/09 to use kc_max from file if given
+    elif data.refet['type'] == 'etr':  # edited by Allen, 6/8/09 to use kc_max from file if given
         if crop.kc_max > 0.3:
             kc_max = crop.kc_max
         else:
@@ -213,7 +214,7 @@ def compute_crop_et(data, et_cell, crop, foo, foo_day, debug_flag=False):
     if debug_flag:
         logging.debug(
             'compute_crop_et(): kc_max %.6f  kc_min %.6f  kc_bas %.6f  in_season %d' % (
-            kc_max, foo.kc_min, foo.kc_bas, foo.in_season))
+                kc_max, foo.kc_min, foo.kc_bas, foo.in_season))
 
     # Estimate infiltrating precipitation
 
@@ -270,7 +271,7 @@ def compute_crop_et(data, et_cell, crop, foo, foo_day, debug_flag=False):
     watin_ze = foo.tew - foo.depl_ze
 
     # if watin_ze <= 0.:
-    if round(watin_ze,6) <= 0.:
+    if round(watin_ze, 6) <= 0.:
         watin_ze = 0.001
     watin_ze = min(watin_ze, foo.tew)
 
@@ -297,7 +298,6 @@ def compute_crop_et(data, et_cell, crop, foo, foo_day, debug_flag=False):
 
     fewp = 1 - foo.fc - few
     fewp = max(fewp, 0.001)
-
 
     # Was "totwatin_ze = watin_ze * few + watin_zep * fewp" until 5/9/07
     # (corrected)
@@ -428,7 +428,7 @@ def compute_crop_et(data, et_cell, crop, foo, foo_day, debug_flag=False):
         if foo.depl_ze <= tew2use:
             kr = foo.kr2 + (1 - foo.kr2) * (tew2use - foo.depl_ze) / (tew2use - rew2use)
         else:
-            if tew3use > tew2use:    # Stage 3 drying (cracking soils)
+            if tew3use > tew2use:  # Stage 3 drying (cracking soils)
                 kr = foo.kr2 * (tew3use - foo.depl_ze) / (tew3use - tew2use)
             else:
                 kr = 0.0
@@ -441,7 +441,7 @@ def compute_crop_et(data, et_cell, crop, foo, foo_day, debug_flag=False):
         if foo.depl_zep <= tew2use:
             krp = foo.kr2 + (1 - foo.kr2) * (tew2use - foo.depl_zep) / (tew2use - rew2use)
         else:
-            if tew3use > tew2use:    # Stage 3 drying (cracking soils)
+            if tew3use > tew2use:  # Stage 3 drying (cracking soils)
                 krp = foo.kr2 * (tew3use - foo.depl_zep) / (tew3use - tew2use)
             else:
                 krp = 0.0
@@ -467,7 +467,6 @@ def compute_crop_et(data, et_cell, crop, foo, foo_day, debug_flag=False):
     ke_irr = kr * (kc_max - foo.kc_bas) * foo.wt_irr
 
     ke_ppt = krp * (kc_max - foo.kc_bas) * (1 - foo.wt_irr)
-
 
     # Limit to maximum rate per unit surface area
 
@@ -649,7 +648,7 @@ def compute_crop_et(data, et_cell, crop, foo, foo_day, debug_flag=False):
         logging.debug('compute_crop_et(): depl_ze %.6f' % (foo.depl_ze))
     if foo.depl_ze > foo.tew:
         # use tew here rather than tew2use to allow depl_ze to remain at tew
-        #'''  probably not.  if Delast <= 0:    Delast = 0
+        # '''  probably not.  if Delast <= 0:    Delast = 0
 
         potential_e = foo.depl_ze - depl_ze_prev
         if potential_e < 0.0001: potential_e = 0.0001
@@ -663,13 +662,13 @@ def compute_crop_et(data, et_cell, crop, foo, foo_day, debug_flag=False):
             logging.warning(
                 ('Problem in keeping depl_ze water balance within TEW.' +
                  'depl_ze, TEW, e_irr, te_irr, e_factor = {} {} {} {} {}').format(
-                     depl_ze, tew, e_irr, te_irr, e_factor))
+                    depl_ze, tew, e_irr, te_irr, e_factor))
             return
     foo.depl_zep = depl_zep_prev + e_ppt / fewp + te_ppt
     foo.depl_zep = max(foo.depl_zep, 0)
 
     if foo.depl_zep > foo.tew:
-        #'depl_zep = TEW
+        # 'depl_zep = TEW
 
         potential_e = foo.depl_zep - depl_zep_prev
         if potential_e < 0.0001:
@@ -683,7 +682,7 @@ def compute_crop_et(data, et_cell, crop, foo, foo_day, debug_flag=False):
             logging.warning(
                 ('Problem in keeping De water balance within TEW.  ' +
                  'De, TEW, E_irr, te_irr, e_factor = {} {} {} {} {}').format(
-                     depl_ze, tew, e_irr, te_irr, e_factor))
+                    depl_ze, tew, e_irr, te_irr, e_factor))
             return
 
     # Recomputed these based on corrections above if depl_ze > TEW  2/21/08
@@ -727,7 +726,6 @@ def compute_crop_et(data, et_cell, crop, foo, foo_day, debug_flag=False):
     foo.etc_act = foo.kc_act * foo_day.etref
     foo.etc_pot = foo.kc_pot * foo_day.etref
     foo.etc_bas = foo.kc_bas * foo_day.etref
-
 
     # Accumulate evaporation following each irrigation event.
     # Subtract evaporation from precipitation.
@@ -777,7 +775,8 @@ def compute_crop_et(data, et_cell, crop, foo, foo_day, debug_flag=False):
     foo.irr_sim = 0.0
     if foo.irr_flag:
         doy_to_start_irr = foo.doy_start_cycle + crop.days_after_planting_irrigation
-        if doy_to_start_irr > 365: doy_to_start_irr -= 365
+        if doy_to_start_irr > 365:
+            doy_to_start_irr -= 365
 
         # Following code was added and changed to prevent winter irrigations of winter grain. dlk 08/15/2012
 
@@ -787,13 +786,14 @@ def compute_crop_et(data, et_cell, crop, foo, foo_day, debug_flag=False):
         if (crop_doy >= crop.days_after_planting_irrigation and
             foo_day.doy >= doy_to_start_irr and foo.in_season and
             foo.depl_root > raw and foo.kc_bas > 0.22):
-
             # No premature end for irrigations is used for Idaho CU comps.
             # Limit irrigation to periods when kc_bas > 0.22 to preclude
             #   frequent irrigation during initial periods
 
             foo.irr_sim = foo.depl_root
             foo.irr_sim = max(foo.irr_sim, foo.irr_min)
+
+            # raise NotImplementedError # set irrigaiton dates according to NDVI data
 
     # Update depletion ofroot zone
 
@@ -929,7 +929,6 @@ def compute_crop_et(data, et_cell, crop, foo, foo_day, debug_flag=False):
     if foo.p_rz <= 0:
         foo.p_rz = 0
 
-
     # p_eft = prcp residing in the root zone available for transpiration
     # p_eft = p_rz - surface evaporation losses
     # p_eft = P - Runoff - DPerc - surface evaporation losses
@@ -957,5 +956,3 @@ def compute_crop_et(data, et_cell, crop, foo, foo_day, debug_flag=False):
     # Get setup for next time step.
     if foo.in_season:
         grow_root.grow_root(crop, foo, debug_flag)
-
-

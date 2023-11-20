@@ -145,7 +145,7 @@ if __name__ == '__main__':
     ndvi_out = os.path.join(d, 'examples', 'tongue', 'landsat', 'ndvi', 'field_daily')
     et_data_ = '/media/research/IrrigationGIS/Montana/tongue/all_data.csv'
     dst_dir_ = os.path.join(d, 'examples', 'tongue', 'field_daily')
-    # join_gridmet_remote_sensing_daily(fields_gridmet, gridmet_, ndvi_, ndvi_out, et_data_, dst_dir_)
+    join_gridmet_remote_sensing_daily(fields_gridmet, gridmet_, ndvi_, ndvi_out, et_data_, dst_dir_)
 
     fields_gridmet = os.path.join(d, 'examples', 'tongue', 'gis', 'tongue_fields_sample_gfid.shp')
     fields_props = os.path.join(d, 'examples', 'tongue', 'static', 'obs', 'tongue_fields_properties.shp')
@@ -156,6 +156,6 @@ if __name__ == '__main__':
     cdl_ = os.path.join(d, 'examples', 'tongue', 'static', 'obs', 'tongue_sample_cdl.csv')
     cross_ = os.path.join(d, 'et-demands/prep/cdl_crosswalk_default.csv')
     out_ = os.path.join(d, 'examples', 'tongue', 'static', 'obs', 'tongue_sample_field_crops.json')
-    prep_fields_crops(cdl_, cross_, out_)
+    # prep_fields_crops(cdl_, cross_, out_)
 
 # ========================= EOF ====================================================================

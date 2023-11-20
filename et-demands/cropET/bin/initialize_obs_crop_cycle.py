@@ -147,7 +147,7 @@ class InitializeObsCropCycle:
         # self.kt_prop = 1
         # self.ze = 0.
 
-    def crop_load(self, data, et_cell, crop):
+    def crop_load(self, data, et_cell, crop, ndvi_coeff):
         """Assign characteristics for crop from crop Arrays
         Parameters
         ---------
@@ -189,7 +189,7 @@ class InitializeObsCropCycle:
         # Bare soil 44, mulched soil 45, dormant turf/sod (winter) 46 do not have curve
 
         if crop.curve_number > 0:
-            self.kc_bas_mid = np.max(et_cell.crop_coeffs[1].data)
+            self.kc_bas_mid = np.nanmax(et_cell.crop_coeffs[1].data['NDVI'].values * 1.25)
 
         # Available water in soil
 
