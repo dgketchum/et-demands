@@ -18,7 +18,7 @@ curve_descs : dict
 
 """
 
-curve_descs = {'1': '1=NCGDD', '2': '2=%PL-EC', '3': '3=%PL-EC+daysafter', '4': '4=%PL-Term', '9': '9=NDVI'}
+curve_descs = {'1': '1=NCGDD', '2': '2=%PL-EC', '3': '3=%PL-EC+daysafter', '4': '4=%PL-Term', '5': '5=NDVI'}
 
 
 class ObsCropCoeff:
@@ -44,12 +44,11 @@ class ObsCropCoeff:
 
     """
 
-    def __init__(self, curve_no, curve_type_no):
+    def __init__(self, curve_type_no):
         """ """
         self.name = None
         self.gdd_type_name = ''
 
-        self.curve_no = curve_no.replace('.0', '')
         self.curve_type_no = curve_type_no.replace('.0', '')
         self.curve_types = curve_descs[self.curve_type_no]
         self.name = curve_descs[self.curve_type_no]

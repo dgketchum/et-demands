@@ -80,10 +80,12 @@ def main(ini_path, log_level=logging.WARNING,
     if observed_flag:
         data = obs_crop_et_data.ObsFieldETData()
         data.read_cet_ini(ini_path, debug_flag)
+        data.set_crop_params()
         cells = obs_et_cell.ObsETCellData()
         cells.set_cell_properties(data)
-        cells = obs_et_cell.ObsETCellData()
-        cells.set_cell_properties(data)
+        cells.set_cell_cuttings_irrigation(data)
+        cells.set_field_crops(data)
+        cells.set_static_crop_params(data.crop_params)
 
     else:
         data = crop_et_data.CropETData()
@@ -96,8 +98,8 @@ def main(ini_path, log_level=logging.WARNING,
         cells.filter_crops(data)
         cells.filter_cells(data)
 
-        cells.set_static_crop_params(data.crop_params)
         cells.set_static_crop_coeffs(data.crop_coeffs)
+        cells.set_static_crop_params(data.crop_params)
 
     if data.co2_flag:
         data.set_crop_co2()
@@ -110,6 +112,10 @@ def main(ini_path, log_level=logging.WARNING,
 
     cell_count = 0
     for cell_id, cell in sorted(cells.et_cells_dict.items()):
+
+        if cell_id != '1781':
+            continue
+
         if etcid_to_run == 'ALL' or etcid_to_run == cell_id:
             logging.info('\nProcessing node id' + cell_id + ' with name ' +
                          cell.cell_name)
@@ -119,7 +125,7 @@ def main(ini_path, log_level=logging.WARNING,
 
             if observed_flag:
                 cell.set_field_crop_coeffs(data)
-                obs_field_cycle.field_day_loop(data, et_cell, debug_flag=debug_flag)
+                obs_field_cycle.field_day_loop(data, cell, ndvid_coeff=1.25, debug_flag=debug_flag)
             else:
                 crop_cycle.crop_cycle(data, cell, debug_flag=debug_flag)
 
@@ -310,6 +316,7 @@ def parse_args():
 if __name__ == '__main__':
 
     obs_flag = True
+    # obs_flag = False
 
     if obs_flag:
         ini = '/home/dgketchum/PycharmProjects/et-demands/examples/tongue/tongue_example_cet_obs.ini'

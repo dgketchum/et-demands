@@ -17,8 +17,9 @@ import sys
 import calculate_height
 import compute_crop_et
 import compute_crop_gdd
-from initialize_crop_cycle import InitializeCropCycle
+from initialize_obs_crop_cycle import InitializeObsCropCycle
 import kcb_daily
+import obs_kcb_daily
 
 
 class DayData:
@@ -37,7 +38,7 @@ class DayData:
         self.etref_array = np.zeros(30)
 
 
-def field_day_loop(data, et_cell, crop, debug_flag=False):
+def field_day_loop(data, et_cell, ndvid_coeff, debug_flag=False):
     """Compute crop et for each daily timestep at a field
 
     Parameters
@@ -70,20 +71,20 @@ def field_day_loop(data, et_cell, crop, debug_flag=False):
     """
 
     func_str = 'field_day_loop()'
+    crop = et_cell.crop_params[1]
     if debug_flag:
         logging.debug(
-            '{}:  Curve {} {}  Class {}  Flag {}'.format(
+            '{}:  Curve {} {}  Class {}'.format(
                 func_str, crop.curve_number, crop.curve_name,
-                crop.class_number, et_cell.crop_flags[crop.class_number]))
+                crop.class_number))
         logging.debug('  GDD trigger DOY: {}'.format(crop.gdd_trigger_doy))
 
     # 'foo' is holder of all these global variables for now
-    # TODO: override foo
-    foo = InitializeCropCycle()
+    foo = InitializeObsCropCycle()
 
     # First time through for crop, load basic crop parameters and
     # process climate data
-    foo.crop_load(data, et_cell, crop)
+    foo.crop_load(data, et_cell, crop, ndvid_coeff)
 
     # GetCO2 correction factors for each crop
     if data.co2_flag:
@@ -100,6 +101,10 @@ def field_day_loop(data, et_cell, crop, debug_flag=False):
         foo.setup_crop(crop)
 
     for step_dt, step_doy in foo.crop_df[['doy']].iterrows():
+
+        if step_dt.year != 2011:
+            continue
+
         if debug_flag:
             logging.debug(
                 '\n{}: DOY {}  Date {}'.format(
@@ -136,8 +141,6 @@ def field_day_loop(data, et_cell, crop, debug_flag=False):
         # For now, cast all values to native Python types
         foo_day.sdays += 1
         foo_day.doy = int(step_doy)
-        if foo_day.doy == 155:
-            a = 1
         foo_day.year = int(step_dt.year)
         foo_day.month = int(step_dt.month)
         foo_day.day = int(step_dt.day)
@@ -185,6 +188,8 @@ def field_day_loop(data, et_cell, crop, debug_flag=False):
         if data.co2_flag:
             foo_day.co2 = float(foo.co2.at[step_dt])
 
+        if foo_day.doy == 155:
+            print(foo_day.year)
         # Compute crop growing degree days
         compute_crop_gdd.compute_crop_gdd(crop, foo, foo_day)
 
@@ -193,7 +198,7 @@ def field_day_loop(data, et_cell, crop, debug_flag=False):
         calculate_height.calculate_height(crop, foo, debug_flag)
 
         # Interpolate Kcb and make climate adjustment (for ETo basis)
-        kcb_daily.kcb_daily(data, et_cell, crop, foo, foo_day, debug_flag)
+        obs_kcb_daily.kcb_daily(data, et_cell, crop, foo, foo_day, ndvid_coeff, debug_flag)
 
         # Calculate Kcb, Ke, ETc
         compute_crop_et.compute_crop_et(data, et_cell, crop, foo, foo_day,
@@ -246,11 +251,11 @@ def field_day_loop(data, et_cell, crop, debug_flag=False):
         data.cet_out['monthly_output_flag'] or
         data.cet_out['annual_output_flag'] or
         data.gs_output_flag):
-        write_crop_output(crop_count, data, et_cell, crop, foo)
+        write_crop_output(data, et_cell, crop, foo)
     return True
 
 
-def write_crop_output(crop_count, data, et_cell, crop, foo):
+def write_crop_output(data, et_cell, crop, foo):
     """Write output files for each cell and crop
 
     Parameters

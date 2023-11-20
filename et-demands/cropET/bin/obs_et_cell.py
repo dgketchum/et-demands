@@ -7,12 +7,14 @@ Called by mod_crop_et.py
 """
 
 import logging
+import copy
 import os
 import json
 import sys
 
 import datetime
 
+import numpy as np
 import pandas as pd
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__),
@@ -20,6 +22,7 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__),
 import util
 
 from et_cell import ETCellData, ETCell
+from obs_crop_coefficients import ObsCropCoeff
 
 mpdToMps = 3.2808399 * 5280 / 86400
 
@@ -28,7 +31,7 @@ class ObsETCellData(ETCellData):
     def __init__(self):
         super().__init__()
 
-    def set_cell_cuttings(self, data):
+    def set_cell_cuttings_irrigation(self, data):
         """Extract mean cutting data from specified file
 
         Parameters
@@ -48,12 +51,29 @@ class ObsETCellData(ETCellData):
         logging.info('\nReading cell crop cuttings from\n' +
                      data.cell_cuttings_path)
         try:
+
             with open(data.cell_cuttings_path, 'r') as fp:
                 dct = json.load(fp)
-            for cell, row in dct.items():
-                cell = self.et_cells_dict[cell]
-                cell.dairy_cuttings = int(row['average_cuttings'])
-                cell.beef_cuttings = int(row['average_cuttings'])
+
+            assert isinstance(dct, str)
+            for cell_id, row in dct.items():
+                cell = self.et_cells_dict[cell_id]
+                cell.dairy_cuttings = None
+                cell.beef_cuttings = None
+
+                cell.irrigation_data = {}
+
+                for k, v in row.items():
+                    if k == 'fallow_years':
+                        cell.fallow_years = v
+                    elif k == 'average_cuttings':
+                        pass
+                    else:
+                        try:
+                            cell.irrigation_data[int(k)] = [x[0] for x in v['irr_dates']]
+                        except ValueError:
+                            a = 1
+
         except:
             logging.error('Unable to read ET Cells cuttings from ' +
                           data.cell_cuttings_path)
@@ -98,10 +118,114 @@ class ObsETCellData(ETCellData):
             logging.error('\nERROR: ' + str(sys.exc_info()[0]) + 'occurred\n')
             sys.exit()
 
+    def set_dynamic_crop_coeffs(self, crop_coeffs):
+        """set static crop coefficients
+
+        Parameters
+        ---------
+        crop_coeffs :
+
+
+        Returns
+        -------
+        None
+
+        Notes
+        -----
+
+        """
+
+        logging.info('Setting static crop coefficients')
+        for cell_id in sorted(self.et_cells_dict.keys()):
+            cell = self.et_cells_dict[cell_id]
+            cell.crop_coeffs = copy.deepcopy(crop_coeffs)
+
+    def set_static_crop_params(self, crop_params):
+        """set static crop parameters
+
+        Parameters
+        ---------
+        crop_params :
+
+
+        Returns
+        -------
+        None
+
+        Notes
+        -----
+
+        """
+        logging.info('\nSetting static crop parameters')
+
+        # copy crop_params
+        for cell_id in sorted(self.et_cells_dict.keys()):
+            cell = self.et_cells_dict[cell_id]
+            cell.crop_params = copy.deepcopy(crop_params)
+
+    def set_field_crops(self, data):
+        """Read crop crop flags using specified file type
+
+        Parameters
+        ---------
+        data : dict
+            configuration data from INI file
+
+        Returns
+        -------
+        None
+
+        Notes
+        -----
+
+        """
+
+        self.read_field_crops(data)
+
+    def read_field_crops(self, data):
+        """Extract et cell crop data from text file
+
+        Parameters
+        ---------
+        data : dict
+            configuration data from INI file
+
+        Returns
+        -------
+        None
+
+        Notes
+        -----
+
+        """
+
+        logging.info('\nReading cell crop flags from\n' + data.cell_crops_path)
+
+        with open(data.cell_crops_path, 'r') as fp:
+            dct = json.load(fp)
+
+        for i, row in enumerate(dct.items()):
+            cell_id = row[0]
+            cell = self.et_cells_dict[cell_id]
+            # cell.irrigation_flag = int(data[3])
+            # cell.crop_flags = dict(zip(row[1]['etd'], data[4:].astype(bool)))
+            # cell.ncrops = len(self.crop_flags)
+            # cell.crop_names = crop_names
+            cell.crop_numbers = row[1]['etd']
+
+            # cell.crop_num_list = sorted(
+            #     [k for k, v in cell.crop_flags.items() if v])
+            self.crop_num_list.extend(row[1]['etd'])
+
+        # Update list of active crop numbers in all cells
+
+        self.crop_num_list = sorted(list(set(self.crop_num_list)))
+
 
 class ObsETCell(ETCell):
     def __init__(self):
         super().__init__()
+        self.crop_coeffs = None
 
     def read_cell_properties_from_row(self, row, columns, elev_units='feet'):
         """ Parse row of data from ET Cells properties file
@@ -189,8 +313,13 @@ class ObsETCell(ETCell):
         return True
 
     def set_field_crop_coeffs(self, data):
-        raise NotImplementedError
+        """Read daily crop coefficient data from NDVI time series"""
 
+        dct = {'curve_type_no': '5'}
+        coeff_obj = ObsCropCoeff(**dct)
+        _csv = os.path.join(data.crop_coefs_path, '{}_daily.csv'.format(self.cell_id))
+        coeff_obj.data = pd.read_csv(_csv, index_col='date')
+        self.crop_coeffs = {1: coeff_obj}
 
 
 if __name__ == '__main__':
