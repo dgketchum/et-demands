@@ -44,44 +44,41 @@ def get_irrigation(fields, desc, debug=False):
     s, e = '1987-01-01', '2021-12-31'
 
     irr_coll = ee.ImageCollection(IRR)
-    coll = irr_coll.filterDate(s, e).select('classification')
-    remap = coll.map(lambda img: img.lt(1))
-    irr_min_yr_mask = remap.sum().gte(5)
+    remap = irr_coll.map(lambda img: img.lt(1))
 
     _selectors = ['FID', 'LAT', 'LON']
     first = True
+
+    area, irr_img = ee.Image.pixelArea(), None
 
     for year in range(1987, 2022):
 
         irr = irr_coll.filterDate('{}-01-01'.format(year),
                                   '{}-12-31'.format(year)).select('classification').mosaic()
 
-        irr_mask = irr_min_yr_mask.updateMask(irr.lt(1))
+        irr = irr.lt(1)
 
         _name = 'irr_{}'.format(year)
         _selectors.append(_name)
 
         if first:
-            irr_img = irr_mask.rename(_name)
+            irr_img = irr.rename(_name)
             first = False
         else:
-            irr_img = irr_img.addBands(irr_mask.rename(_name))
+            irr_img = irr_img.addBands(irr.rename(_name))
 
     means = irr_img.reduceRegions(collection=plots,
                                   reducer=ee.Reducer.mean(),
                                   scale=30)
 
     if debug:
-        point = ee.Geometry.Point([-105.818117, 46.140252])
-        data = irr_img.sample(point, 30).getInfo()
-        print(data['features'])
+        debug = means.filterMetadata('FID', 'equals', 1789).getInfo()
 
-    out_ = '{}_cdl'.format(desc)
     task = ee.batch.Export.table.toCloudStorage(
         means,
-        description=out_,
+        description=desc,
         bucket='wudr',
-        fileNamePrefix=out_,
+        fileNamePrefix=desc,
         fileFormat='CSV',
         selectors=_selectors)
 
@@ -95,6 +92,6 @@ if __name__ == '__main__':
     description = 'tongue_sample_irr'
     # get_cdl(fields_, description)
 
-    get_irrigation(fields_, description, debug=True)
+    get_irrigation(fields_, description, debug=False)
 
 # ========================= EOF ====================================================================
