@@ -8,13 +8,13 @@ import datetime
 import logging
 import math
 import sys
-import util
 
 import grow_root
+import util
 import runoff
 
 
-def compute_crop_et(data, et_cell, crop, foo, foo_day, debug_flag=False):
+def compute_field_et(data, et_cell, crop, foo, foo_day, debug_flag=False):
     """Crop et computations
 
         Parameters
@@ -773,27 +773,39 @@ def compute_crop_et(data, et_cell, crop, foo, foo_day, debug_flag=False):
 
     irr_sim_prev = foo.irr_sim
     foo.irr_sim = 0.0
+
     if foo.irr_flag:
-        doy_to_start_irr = foo.doy_start_cycle + crop.days_after_planting_irrigation
-        if doy_to_start_irr > 365:
-            doy_to_start_irr -= 365
 
-        # Following code was added and changed to prevent winter irrigations of winter grain. dlk 08/15/2012
+        if foo.obs_flag:
+            if foo_day.year in et_cell.irrigation_data.keys():
+                irr_days = et_cell.irrigation_data[foo_day.year]['irr_doys']
+            else:
+                irr_days = []
 
-        crop_doy = foo_day.doy - foo.doy_start_cycle + 1
-        if crop_doy < 1:
-            crop_doy += 365
-        if (crop_doy >= crop.days_after_planting_irrigation and
-            foo_day.doy >= doy_to_start_irr and foo.in_season and
-            foo.depl_root > raw and foo.kc_bas > 0.22):
-            # No premature end for irrigations is used for Idaho CU comps.
-            # Limit irrigation to periods when kc_bas > 0.22 to preclude
-            #   frequent irrigation during initial periods
+            # TODO setup calibration for these critical parameters (i.e., Kcb and NDVI-based irr_doy formulation)
+            if (foo_day.doy in irr_days or foo.kc_bas > 0.7) and foo.depl_root > raw:
+                foo.irr_sim = foo.depl_root
+                foo.irr_sim = max(foo.irr_sim, foo.irr_min)
 
-            foo.irr_sim = foo.depl_root
-            foo.irr_sim = max(foo.irr_sim, foo.irr_min)
+        elif not foo.obs_flag:
+            doy_to_start_irr = foo.doy_start_cycle + crop.days_after_planting_irrigation
+            if doy_to_start_irr > 365:
+                doy_to_start_irr -= 365
 
-            # raise NotImplementedError # set irrigaiton dates according to NDVI data
+            # Following code was added and changed to prevent winter irrigations of winter grain. dlk 08/15/2012
+
+            crop_doy = foo_day.doy - foo.doy_start_cycle + 1
+            if crop_doy < 1:
+                crop_doy += 365
+            if (crop_doy >= crop.days_after_planting_irrigation and
+                foo_day.doy >= doy_to_start_irr and foo.in_season and
+                foo.depl_root > raw and foo.kc_bas > 0.22):
+                # No premature end for irrigations is used for Idaho CU comps.
+                # Limit irrigation to periods when kc_bas > 0.22 to preclude
+                #   frequent irrigation during initial periods
+
+                foo.irr_sim = foo.depl_root
+                foo.irr_sim = max(foo.irr_sim, foo.irr_min)
 
     # Update depletion ofroot zone
 
