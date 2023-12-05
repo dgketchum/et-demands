@@ -12,8 +12,7 @@ import sys
 
 de_initial = 10.0  # mm initial depletion for first day of crop
 
-
-class InitializeObsCropCycle:
+class InitializeCropCycle:
     def __init__(self):
         """Initialize for crops cycle"""
         self.ad = 0.
@@ -34,7 +33,7 @@ class InitializeObsCropCycle:
         self.etc_act = 0.
         self.etc_pot = 0.
         self.etc_bas = 0.
-        self.etref_30 = 0.  # thirty day mean ETref  ' added 12/2007
+        self.etref_30 = 0.   # thirty day mean ETref  ' added 12/2007
         self.fc = 0.
         self.fw = 0.
         self.fw_spec = 0.
@@ -90,6 +89,7 @@ class InitializeObsCropCycle:
         self.doy_start_cycle = 0
         self.cutting = 0
         self.cycle = 1
+        self.obs_flag = False
         self.real_start = False
         self.irr_flag = False
         self.in_season = False  # false if outside season, true if inside
@@ -147,7 +147,7 @@ class InitializeObsCropCycle:
         # self.kt_prop = 1
         # self.ze = 0.
 
-    def crop_load(self, data, et_cell, crop, ndvi_coeff):
+    def crop_load(self, data, et_cell, crop):
         """Assign characteristics for crop from crop Arrays
         Parameters
         ---------
@@ -189,11 +189,11 @@ class InitializeObsCropCycle:
         # Bare soil 44, mulched soil 45, dormant turf/sod (winter) 46 do not have curve
 
         if crop.curve_number > 0:
-            self.kc_bas_mid = np.nanmax(et_cell.crop_coeffs[1].data['NDVI'].values * 1.25)
+            self.kc_bas_mid = np.max(et_cell.crop_coeffs[crop.curve_number].data)
 
         # Available water in soil
 
-        self.aw = et_cell.stn_whc / 12 * 1000.  # in/ft to mm/m
+        self.aw = et_cell.stn_whc / 12 * 1000.   # in/ft to mm/m
         self.mad_ini = crop.mad_initial
         self.mad_mid = crop.mad_midseason
 
@@ -218,7 +218,7 @@ class InitializeObsCropCycle:
 
         self.tew = -3.7 + 166 * self.aw / 1000  # TEW is in mm and AW is in mm/m
         if self.rew > (0.8 * self.tew):
-            self.rew = 0.8 * self.tew  # limit REW based on TEW
+            self.rew = 0.8 * self.tew # limit REW based on TEW
         self.tew2 = self.tew  # TEW2Array(ctCount)
         self.tew3 = self.tew  # TEW3Array(ctCount) '(no severely cracking clays in Idaho)
         self.kr2 = 0  # Kr2Array(ctCount)'(no severely cracking clays in Idaho)
@@ -253,22 +253,22 @@ class InitializeObsCropCycle:
         if crop.flag_for_means_to_estimate_pl_or_gu == 1:
             if data.phenology_option == 0:
                 cgdd_col = 'main_cgdd_0_lt'
-            elif data.phenology_option == 1:  # annual crops only
+            elif data.phenology_option == 1:    # annual crops only
                 if crop.is_annual:
                     cgdd_col = 'hist_cgdd_0_lt'
                 else:
                     cgdd_col = 'main_cgdd_0_lt'
-            elif data.phenology_option == 2:  # perennial crops only
+            elif data.phenology_option == 2:    # perennial crops only
                 if not crop.is_annual:
                     cgdd_col = 'hist_cgdd_0_lt'
                 else:
                     cgdd_col = 'main_cgdd_0_lt'
-            else:  # both annual and perennial
+            else:    # both annual and perennial
                 cgdd_col = 'hist_cgdd_0_lt'
             try:
                 self.longterm_pl = int(np.where(np.diff(np.array(
                     et_cell.climate[cgdd_col] > crop.t30_for_pl_or_gu_or_cgdd,
-                    dtype=np.int8)) > 0)[0][0]) + 1
+                    dtype = np.int8)) > 0)[0][0]) + 1
             except:
                 logging.error(
                     ('  initialize_crop_cycle():\n  Crop: {0:2d}, CellID: {1}\n' +
@@ -283,17 +283,17 @@ class InitializeObsCropCycle:
         elif crop.flag_for_means_to_estimate_pl_or_gu == 2:
             if data.phenology_option == 0:
                 t30_col = 'main_t30_lt'
-            elif data.phenology_option == 1:  # annual crops only
+            elif data.phenology_option == 1:    # annual crops only
                 if crop.is_annual:
                     t30_col = 'hist_t30_lt'
                 else:
                     t30_col = 'main_t30_lt'
-            elif data.phenology_option == 2:  # perennial crops only
+            elif data.phenology_option == 2:    # perennial crops only
                 if not crop.is_annual:
                     t30_col = 'hist_t30_lt'
                 else:
                     t30_col = 'main_t30_lt'
-            else:  # both annual and perennial
+            else:    # both annual and perennial
                 t30_col = 'hist_t30_lt'
             try:
                 # print(int(np.where(np.diff(np.array(
@@ -304,7 +304,7 @@ class InitializeObsCropCycle:
                 # Report wrong error message
                 self.longterm_pl = int(np.where(np.diff(np.array(
                     et_cell.climate[t30_col] > crop.t30_for_pl_or_gu_or_cgdd,
-                    dtype=np.int8)) > 0)[0][0]) + 1
+                    dtype = np.int8)) > 0)[0][0]) + 1
 
             except IndexError:
                 self.longterm_pl = 0
@@ -418,7 +418,7 @@ class InitializeObsCropCycle:
             self.aw3 = max(0.0, self.aw3)
             if self.aw3 > self.aw: self.aw3 = self.aw
             self.aw3 = min(self.aw, self.aw3)
-        if self.depl_root < 0.: self.depl_root = 0.
+        if self.depl_root < 0.:self.depl_root = 0.
 
         # Initialize rooting depth at beginning of time  <----DO??? Need recalc on Reserve?
         self.zr = self.zr_min
@@ -460,29 +460,29 @@ class InitializeObsCropCycle:
         #  note: set Kcmax for winter time (Nov-Mar) and fc outside of this sub.
 
         if wscc == 1:
-            self.kc_bas = 0.1  # was 0.2
+            self.kc_bas = 0.1    # was 0.2
             self.fc = 0
         elif wscc == 2:
-            self.kc_bas = 0.1  # was 0.2
+            self.kc_bas = 0.1    # was 0.2
             self.fc = 0.4
         elif wscc == 3:
-            self.kc_bas = 0.2  # was 0.3
-            self.fc = 0.7  # was 0.6
+            self.kc_bas = 0.2    # was 0.3
+            self.fc = 0.7     # was 0.6
 
         # Setup curve number for antecedent II condition for winter covers
         # Crop params dictionary uses crop number as key
         # Don't subtract 1 to convert to an index
         if et_cell.stn_hydrogroup == 1:
-            self.cn2 = et_cell.crop_params[wscc + 43].cn_coarse_soil
+            self.cn2 = et_cell.crop_params[wscc+43].cn_coarse_soil
         elif et_cell.stn_hydrogroup == 2:
-            self.cn2 = et_cell.crop_params[wscc + 43].cn_medium_soil
+            self.cn2 = et_cell.crop_params[wscc+43].cn_medium_soil
         elif et_cell.stn_hydrogroup == 3:
-            self.cn2 = et_cell.crop_params[wscc + 43].cn_fine_soil
+            self.cn2 = et_cell.crop_params[wscc+43].cn_fine_soil
 
         # Assume that 'rooting depth' for dormant surfaces is 0.1 or 0.15 m
         # This is depth that will be applied with a stress function to reduce kc_bas
 
-        zr_dormant = 0.1  # was 0.15
+        zr_dormant = 0.1  #  was 0.15
 
         # Convert current moisture content of Zr layer
         #   (which should be at zr_max at end of season)
@@ -508,6 +508,7 @@ class InitializeObsCropCycle:
         # Depth of evaporation layer (This only works when ze < zr_dormant)
 
         ze = 0.1
+
 
         # Reduce daw_root by water in evap layer and rest of zr_dormant and then proportion
         if zr_dormant < self.zr:

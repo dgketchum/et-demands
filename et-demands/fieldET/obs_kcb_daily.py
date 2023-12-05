@@ -764,8 +764,13 @@ def kcb_daily(data, et_cell, crop, foo, foo_day,
             gs_start_doy, gs_end_doy = int(gs_start.strftime('%j')), int(gs_end.strftime('%j'))
 
             if gs_start_doy < foo_day.doy < gs_end_doy:
+                if foo_day.year in et_cell.fallow_years:
+                    kc_src = 'NDVI_NO_IRR'
+                else:
+                    kc_src = 'NDVI_IRR'
                 dt_string = '{}-{:02d}-{:02d}'.format(foo_day.year, foo_day.month, foo_day.day)
-                foo.kc_bas = ndvi_coeff * et_cell.crop_coeffs[1].data.loc[dt_string, 'NDVI']
+                foo.kc_bas = ndvi_coeff * et_cell.crop_coeffs[1].data.loc[dt_string, kc_src]
+
             else:
                 foo.kc_bas = 0.1
 
