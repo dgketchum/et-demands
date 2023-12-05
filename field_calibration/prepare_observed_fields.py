@@ -54,10 +54,14 @@ def prepare_fields_properties(met_fields, soils, fields_out):
     fields.to_csv(fields_out.replace('.shp', '.csv'))
 
 
-def join_gridmet_remote_sensing_daily(fields, gridmet_dir, ndvi, ndvi_dst, et_data, dst_dir):
-    ndvi = pd.read_csv(ndvi, index_col=0, infer_datetime_format=True, parse_dates=True)
-    start, end = ndvi.index[0], ndvi.index[-1]
-    years = list(set([i.year for i in ndvi.index]))
+def join_gridmet_remote_sensing_daily(fields, gridmet_dir, ndvi_masked, ndvi_unmasked, etf_masked, etf_unmasked,
+                                      et_data, dst_dir):
+    ndvi_masked = pd.read_csv(ndvi_masked, index_col=0, infer_datetime_format=True, parse_dates=True)
+    ndvi_unmasked = pd.read_csv(ndvi_unmasked, index_col=0, infer_datetime_format=True, parse_dates=True)
+    etf_masked = pd.read_csv(etf_masked, index_col=0, infer_datetime_format=True, parse_dates=True)
+    etf_unmasked = pd.read_csv(etf_unmasked, index_col=0, infer_datetime_format=True, parse_dates=True)
+    start, end = ndvi_masked.index[0], ndvi_masked.index[-1]
+    years = list(set([i.year for i in ndvi_masked.index]))
 
     fields = gpd.read_file(fields)
     fields.index = fields['FID']
@@ -83,16 +87,24 @@ def join_gridmet_remote_sensing_daily(fields, gridmet_dir, ndvi, ndvi_dst, et_da
         fractional = gridmet.loc[group_my.index, ['eto_mm', 'etr_mm']] / group_my
 
         et = pd.DataFrame(index=et_index, data=list(et_data.loc[f].values), columns=['et'])
+
+        # TODO: remove this hack to get ET data for the whole year once we have OpenET
+        append_ind = [pd.to_datetime('{}-01-01'.format(y)) for y in years]
+        append_data = [0.0 for y in years]
+        append = pd.DataFrame(data=append_data, index=append_ind, columns=['et'])
+        et = pd.concat([et, append])
+        et = et.sort_index()
+
         et = et.resample('D').ffill()
         et = et.append(pd.DataFrame(index=pd.date_range(et.index[-1], end)[1:])).ffill()
 
         gridmet['eta_r_mm'] = fractional['etr_mm'] * et['et'].values * 1000
         gridmet['eta_o_mm'] = fractional['eto_mm'] * et['et'].values * 1000
-        gridmet.loc[ndvi.index, 'NDVI'] = ndvi[str(f)] / 1000
 
-        ndvi_field = gridmet[['NDVI']].copy()
-        nd_file = os.path.join(ndvi_dst, '{}_daily.csv'.format(f))
-        ndvi_field.to_csv(nd_file)
+        gridmet.loc[ndvi_masked.index, 'NDVI_IRR'] = ndvi_masked[str(f)]
+        gridmet.loc[ndvi_unmasked.index, 'NDVI_NO_IRR'] = ndvi_unmasked[str(f)]
+        gridmet.loc[etf_masked.index, 'ETF_IRR'] = etf_masked[str(f)]
+        gridmet.loc[etf_unmasked.index, 'ETF_NO_IRR'] = etf_unmasked[str(f)]
 
         _file = os.path.join(dst_dir, '{}_daily.csv'.format(f))
         gridmet.to_csv(_file)
@@ -100,7 +112,6 @@ def join_gridmet_remote_sensing_daily(fields, gridmet_dir, ndvi, ndvi_dst, et_da
 
 
 def prep_fields_crops(cdl, crosswalk_path, out):
-
     dct = {}
 
     df = pd.read_csv(cdl)
@@ -141,13 +152,15 @@ if __name__ == '__main__':
 
     fields_gridmet = os.path.join(d, 'examples', 'tongue', 'gis', 'tongue_fields_sample_gfid.shp')
     gridmet_ = os.path.join(d, 'examples', 'tongue', 'climate')
-    ndvi_ = os.path.join(d, 'examples', 'tongue', 'landsat', 'tongue_ndvi_sample.csv')
-    ndvi_out = os.path.join(d, 'examples', 'tongue', 'landsat', 'ndvi', 'field_daily')
+    ndvi_masked_ = os.path.join(d, 'examples', 'tongue', 'landsat', 'tongue_ndvi_masked_sample.csv')
+    etf_masked_ = os.path.join(d, 'examples', 'tongue', 'landsat', 'tongue_etf_masked_sample.csv')
+    ndvi_inv_mask_ = os.path.join(d, 'examples', 'tongue', 'landsat', 'tongue_ndvi_inv_mask_sample.csv')
+    etf_inv_mask_ = os.path.join(d, 'examples', 'tongue', 'landsat', 'tongue_etf_inv_mask_sample.csv')
     et_data_ = '/media/research/IrrigationGIS/Montana/tongue/all_data.csv'
-    dst_dir_ = os.path.join(d, 'examples', 'tongue', 'field_daily')
-    join_gridmet_remote_sensing_daily(fields_gridmet, gridmet_, ndvi_, ndvi_out, et_data_, dst_dir_)
+    dst_dir_ = os.path.join(d, 'examples', 'tongue', 'landsat', 'ndvi', 'field_daily')
+    join_gridmet_remote_sensing_daily(fields_gridmet, gridmet_, ndvi_masked_, ndvi_inv_mask_, etf_masked_,
+                                      etf_inv_mask_, et_data_, dst_dir_)
 
-    fields_gridmet = os.path.join(d, 'examples', 'tongue', 'gis', 'tongue_fields_sample_gfid.shp')
     fields_props = os.path.join(d, 'examples', 'tongue', 'static', 'obs', 'tongue_fields_properties.shp')
     soils_ = os.path.join(d, 'examples', 'tongue', 'gis', 'soils_aea')
     # TODO: write ndvi series to a separate file, or read the entire climate/ndvi file into the ObsCellET object
