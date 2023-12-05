@@ -21,7 +21,7 @@ curve_descs : dict
 curve_descs = {'1': '1=NCGDD', '2': '2=%PL-EC', '3': '3=%PL-EC+daysafter', '4': '4=%PL-Term', '5': '5=NDVI'}
 
 
-class ObsCropCoeff:
+class RemoteSensingData:
     """Crop coefficient container
 
     Attributes

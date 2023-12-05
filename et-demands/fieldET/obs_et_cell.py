@@ -18,11 +18,11 @@ import numpy as np
 import pandas as pd
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__),
-                                             '../../lib')))
+                                             '../lib')))
 import util
 
 from et_cell import ETCellData, ETCell
-from obs_crop_coefficients import ObsCropCoeff
+from obs_remote_sensing import RemoteSensingData
 
 mpdToMps = 3.2808399 * 5280 / 86400
 
@@ -48,37 +48,23 @@ class ObsETCellData(ETCellData):
 
         """
 
-        logging.info('\nReading cell crop cuttings from\n' +
-                     data.cell_cuttings_path)
-        try:
+        with open(data.cell_cuttings_path, 'r') as fp:
+            dct = json.load(fp)
 
-            with open(data.cell_cuttings_path, 'r') as fp:
-                dct = json.load(fp)
+        for cell_id, row in dct.items():
+            cell = self.et_cells_dict[cell_id]
+            cell.dairy_cuttings = None
+            cell.beef_cuttings = None
 
-            assert isinstance(dct, str)
-            for cell_id, row in dct.items():
-                cell = self.et_cells_dict[cell_id]
-                cell.dairy_cuttings = None
-                cell.beef_cuttings = None
+            cell.irrigation_data = {}
 
-                cell.irrigation_data = {}
-
-                for k, v in row.items():
-                    if k == 'fallow_years':
-                        cell.fallow_years = v
-                    elif k == 'average_cuttings':
-                        pass
-                    else:
-                        try:
-                            cell.irrigation_data[int(k)] = [x[0] for x in v['irr_dates']]
-                        except ValueError:
-                            a = 1
-
-        except:
-            logging.error('Unable to read ET Cells cuttings from ' +
-                          data.cell_cuttings_path)
-            logging.error('\nERROR: ' + str(sys.exc_info()[0]) + 'occurred\n')
-            sys.exit()
+            for k, v in row.items():
+                if k == 'fallow_years':
+                    cell.fallow_years = v
+                elif k == 'average_cuttings':
+                    pass
+                else:
+                    cell.irrigation_data[int(k)] = v
 
     def set_cell_properties(self, data):
         """Extract ET cells properties data from specified file
@@ -225,6 +211,7 @@ class ObsETCellData(ETCellData):
 class ObsETCell(ETCell):
     def __init__(self):
         super().__init__()
+        self.refet_df = None
         self.crop_coeffs = None
 
     def read_cell_properties_from_row(self, row, columns, elev_units='feet'):
@@ -303,23 +290,35 @@ class ObsETCell(ETCell):
 
         """
 
-        if not self.set_refet_data(data, cells):
-            return False
-        if not self.set_weather_data(cell_count, data, cells):
-            return False
-        # Process climate arrays
+        self.set_refet_data(data)
+        self.set_weather_data(cell_count, data, cells)
         self.process_climate(data)
-        self.set_field_crop_coeffs(data)
+        self.set_field_remote_sensing_data(data)
         return True
 
-    def set_field_crop_coeffs(self, data):
+    def set_field_remote_sensing_data(self, data):
         """Read daily crop coefficient data from NDVI time series"""
 
         dct = {'curve_type_no': '5'}
-        coeff_obj = ObsCropCoeff(**dct)
+        rs_obj = RemoteSensingData(**dct)
         _csv = os.path.join(data.crop_coefs_path, '{}_daily.csv'.format(self.cell_id))
-        coeff_obj.data = pd.read_csv(_csv, index_col='date')
-        self.crop_coeffs = {1: coeff_obj}
+        coeff_df = pd.read_csv(_csv, index_col='date', infer_datetime_format=True, parse_dates=True)
+        rs_obj.data = coeff_df[['eta_r_mm', 'eta_o_mm',
+                                'NDVI_IRR', 'NDVI_NO_IRR']]
+        self.crop_coeffs = {1: rs_obj}
+
+    def set_refet_data(self, data):
+        """Read daily crop coefficient data from NDVI time series"""
+
+        _csv = os.path.join(data.crop_coefs_path, '{}_daily.csv'.format(self.cell_id))
+        refet_df = pd.read_csv(_csv, index_col='date', infer_datetime_format=True, parse_dates=True)
+        refet_df = refet_df[['etr_mm', 'eto_mm', 'etr_mm_uncorr', 'eto_mm_uncorr']]
+        if data.refet['type'] == 'eto':
+            refet_df['etref'] = refet_df['eto_mm']
+        else:
+            refet_df['etref'] = refet_df['etr_mm']
+        refet_df['doy'] = [i.dayofyear for i in refet_df.index]
+        self.refet_df = refet_df
 
 
 if __name__ == '__main__':

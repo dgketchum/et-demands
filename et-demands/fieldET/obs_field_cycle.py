@@ -8,18 +8,14 @@ Called by mod_crop_et.py
 
 import datetime
 import logging
-import multiprocessing as mp
 import os
 import numpy as np
 import pandas as pd
-import sys
 
-import calculate_height
-import compute_crop_et
-import compute_crop_gdd
+import compute_field_et
 from initialize_obs_crop_cycle import InitializeObsCropCycle
-import kcb_daily
 import obs_kcb_daily
+import calculate_height
 
 
 class DayData:
@@ -102,7 +98,10 @@ def field_day_loop(data, et_cell, ndvid_coeff, debug_flag=False):
 
     for step_dt, step_doy in foo.crop_df[['doy']].iterrows():
 
-        if step_dt.year != 2011:
+        # if not 2008 < step_dt.year < 2012:
+        #     continue
+        # TODO: complete time series with LE07, else NDVI empty in 2012
+        if step_dt.year == 2012:
             continue
 
         if debug_flag:
@@ -188,10 +187,8 @@ def field_day_loop(data, et_cell, ndvid_coeff, debug_flag=False):
         if data.co2_flag:
             foo_day.co2 = float(foo.co2.at[step_dt])
 
-        if foo_day.doy == 155:
-            print(foo_day.year)
         # Compute crop growing degree days
-        compute_crop_gdd.compute_crop_gdd(crop, foo, foo_day)
+        # compute_crop_gdd.compute_crop_gdd(crop, foo, foo_day)
 
         # Calculate height of vegetation.
         # Moved up to this point 12/26/07 for use in adj. Kcb and kc_max
@@ -201,8 +198,8 @@ def field_day_loop(data, et_cell, ndvid_coeff, debug_flag=False):
         obs_kcb_daily.kcb_daily(data, et_cell, crop, foo, foo_day, ndvid_coeff, debug_flag)
 
         # Calculate Kcb, Ke, ETc
-        compute_crop_et.compute_crop_et(data, et_cell, crop, foo, foo_day,
-                                        debug_flag)
+        compute_field_et.compute_field_et(data, et_cell, crop, foo, foo_day,
+                                         debug_flag)
 
         # Retrieve values from foo_day and write to output data frame
         # Eventually let compute_crop_et() write directly to output df
@@ -221,17 +218,20 @@ def field_day_loop(data, et_cell, ndvid_coeff, debug_flag=False):
         foo.crop_df.at[step_dt, 'cutting'] = int(foo.cutting)
 
         # Write final output file variables to DEBUG file
-        if debug_flag:
-            logging.debug((
-                '{}: ETref  {:.6f}  Precip {:.6f}  T30 {:.6f}').format(
-                func_str, foo_day.etref, foo_day.precip, foo_day.t30))
-            logging.debug((
-                '{}: ETact  {:.6f}  ETpot {:.6f}   ETbas {:.6f}').format(
-                func_str, foo.etc_act, foo.etc_pot, foo.etc_bas))
-            logging.debug((
-                '{}: Irrig  {:.6f}  Runoff {:.6f}  ' +
-                'DPerc {:.6f}  NIWR {:.6f}').format(
-                func_str, foo.irr_sim, foo.sro, foo.dperc, foo.niwr))
+        if foo_day.doy == 270:
+
+            if debug_flag:
+                print(foo_day.year)
+                # print((
+                #     '{}: ETref  {:.6f}  Precip {:.6f}  T30 {:.6f}').format(
+                #     func_str, foo_day.etref, foo_day.precip, foo_day.t30))
+                print((
+                    '{}: ETact  {:.6f}  ETpot {:.6f}   ETbas {:.6f}').format(
+                    func_str, foo.etc_act, foo.etc_pot, foo.etc_bas))
+                # print((
+                #     '{}: Irrig  {:.6f}  Runoff {:.6f}  ' +
+                #     'DPerc {:.6f}  NIWR {:.6f}').format(
+                #     func_str, foo.irr_sim, foo.sro, foo.dperc, foo.niwr))
 
         # Check that season started
         if foo_day.month == 12 and foo_day.day == 31:
@@ -306,13 +306,36 @@ def write_crop_output(data, et_cell, crop, foo):
     p_rz_fraction_field = 'P_rz_fraction'
     p_eft_fraction_field = 'P_eft_fraction'
 
+    columns_order = ['DOY',
+                     'PMetr_mm',
+                     'ETact',
+                     'ETpot',
+                     'ETbas',
+                     'Kc',
+                     'Kcb',
+                     'NDVI_IRR',
+                     'PPT',
+                     'Irrigation',
+                     'Runoff',
+                     'DPerc',
+                     'NIWR',
+                     'Season',
+                     'Cutting',
+                     'P_rz',
+                     'P_eft',
+                     'NDVI_NO_IRR',
+                     'Year']
+
     # Merge crop and weather data frames to form daily output
     if (data.cet_out['daily_output_flag'] or
         data.cet_out['monthly_output_flag'] or
         data.cet_out['annual_output_flag'] or
         data.gs_output_flag):
+        # et_cell.crop_coeffs[1].data does not have DateTimeIndex
+        add_ = pd.merge(et_cell.climate_df[['ppt']], et_cell.crop_coeffs[1].data,
+                        left_index=True, right_index=True)
         daily_output_df = pd.merge(
-            foo.crop_df, et_cell.climate_df[['ppt']],
+            foo.crop_df, add_,
             # foo.crop_df, et_cell.climate_df[['ppt', 't30']],
             left_index=True, right_index=True)
 
@@ -327,6 +350,11 @@ def write_crop_output(data, et_cell, crop, foo):
             'runoff': runoff_field, 'dperc': dperc_field,
             'p_rz': p_rz_field, 'p_eft': p_eft_field,
             'season': season_field, 'cutting': cutting_field})
+
+        # TODO: remove this debugging code
+        # daily_output_df.dropna(how='any', inplace=True)
+        # daily_output_df = daily_output_df[columns_order]
+        # daily_output_df = daily_output_df.loc['2011-04-01': '2011-10-31']
 
     # Compute monthly and annual stats before modifying daily format below
     if data.cet_out['monthly_output_flag']:
