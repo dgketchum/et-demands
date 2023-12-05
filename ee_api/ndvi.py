@@ -1,79 +1,16 @@
-import os
-import sys
 import json
+import os
 from subprocess import call
-from datetime import datetime
-from tqdm import tqdm
 
-import ee
+import geopandas as gpd
 import numpy as np
 import pandas as pd
-import geopandas as gpd
-
-import matplotlib.pyplot as plt
-
-from rasterstats import zonal_stats
-
 from detecta import detect_peaks, detect_cusum, detect_onset
-
-from ee_api.ee_utils import landsat_masked, is_authorized
-
-sys.path.insert(0, os.path.abspath('..'))
-sys.setrecursionlimit(5000)
-
-IRR = 'projects/ee-dgketchum/assets/IrrMapper/IrrMapperComp'
-
-L5, L8 = 'LANDSAT/LT05/C02/T1_L2', 'LANDSAT/LC08/C02/T1_L2'
+from rasterstats import zonal_stats
+from tqdm import tqdm
 
 
-def export_ndvi(feature_coll, year=2015, bucket=None, debug=False, mask_type='irr'):
-    s, e = '1987-01-01', '2021-12-31'
-    irr_coll = ee.ImageCollection(IRR)
-    coll = irr_coll.filterDate(s, e).select('classification')
-    remap = coll.map(lambda img: img.lt(1))
-    irr_min_yr_mask = remap.sum().gte(5)
-    irr = irr_coll.filterDate('{}-01-01'.format(year),
-                              '{}-12-31'.format(year)).select('classification').mosaic()
-    irr_mask = irr_min_yr_mask.updateMask(irr.lt(1))
-
-    coll = landsat_masked(year, feature_coll).map(lambda x: x.normalizedDifference(['B5', 'B4']))
-    scenes = coll.aggregate_histogram('system:index').getInfo()
-
-    for img_id in scenes:
-
-        splt = img_id.split('_')
-        _name = '_'.join(splt[-3:])
-
-        # if _name != 'LT05_035028_20080724':
-        #     continue
-
-        img = coll.filterMetadata('system:index', 'equals', img_id).first()
-
-        if mask_type == 'no_mask':
-            img = img.clip(feature_coll.geometry()).multiply(1000).int()
-        elif mask_type == 'irr':
-            img = img.clip(feature_coll.geometry()).mask(irr_mask).multiply(1000).int()
-        elif mask_type == 'inv_irr':
-            img = img.clip(feature_coll.geometry()).mask(irr.gt(0)).multiply(1000).int()
-
-        if debug:
-            point = ee.Geometry.Point([-105.793, 46.1684])
-            data = img.sample(point, 30).getInfo()
-            print(data['features'])
-
-        task = ee.batch.Export.image.toCloudStorage(
-            img,
-            description='NDVI_{}'.format(_name),
-            bucket=bucket,
-            region=feature_coll.geometry(),
-            crs='EPSG:5070',
-            scale=30)
-
-        task.start()
-        print(_name)
-
-
-def landsat_ndvi_time_series(in_shp, tif_dir, years, out_csv):
+def landsat_time_series(in_shp, tif_dir, years, out_csv):
     gdf = gpd.read_file(in_shp)
     gdf.index = gdf['FID']
 
@@ -86,7 +23,7 @@ def landsat_ndvi_time_series(in_shp, tif_dir, years, out_csv):
         dt_index = pd.date_range('{}-01-01'.format(yr), '{}-12-31'.format(yr), freq='D')
         df = pd.DataFrame(index=dt_index, columns=gdf.index)
 
-        print('\n', yr, '\n')
+        print('\n', yr)
         for dt, f in tqdm(zip(dts, file_list), total=len(file_list)):
             stats = zonal_stats(in_shp, f, stats=['mean'], nodata=0.0, categorical=False, all_touched=False)
             stats = [x['mean'] if isinstance(x['mean'], float) else np.nan for x in stats]
@@ -116,33 +53,6 @@ def get_list_info(tif_dir, year):
     return l, dates_
 
 
-def plot_ndvi(csv, plot_dir):
-    adf = pd.read_csv(csv, index_col=0, parse_dates=True, infer_datetime_format=True)
-    cols = list(adf.columns)
-    years = list(set([i.year for i in adf.index]))
-
-    for c in cols:
-        df = adf[[c]]
-        df['date'] = df.index
-        df['year'] = df.date.dt.year
-        df['date'] = df.date.dt.strftime('%m-%d')
-        df.index = [x for x in range(0, df.shape[0])]
-        df = df.set_index(['year', 'date'])[c].unstack(-2)
-        df.dropna(axis=1, how='all', inplace=True)
-
-        colors = ['#' + ''.join(np.random.choice(list('0123456789ABCDEF'), size=6)) for _ in df.columns]
-        ax = df.plot(logy=False, legend=False, alpha=0.8, color=colors, ylabel='NDVI',
-                     title='NDVI {} - {}'.format(years[0], years[-1]), figsize=(30, 10))
-
-        df = df.loc[df.index != '02-29']
-        df.dropna(how='any', axis=1, inplace=True)
-
-        _file = os.path.join(plot_dir, 'ndvi_{}.png'.format(c))
-        plt.savefig(_file)
-        # plt.show()
-        print(_file)
-
-
 def detect_cuttings(ndvi_masked, ndvi_unmasked, irr_csv, out_json, plots=None, irr_threshold=0.5):
     masked = pd.read_csv(ndvi_masked, index_col=0, parse_dates=True, infer_datetime_format=True)
     unmasked = pd.read_csv(ndvi_unmasked, index_col=0, parse_dates=True, infer_datetime_format=True)
@@ -158,11 +68,11 @@ def detect_cuttings(ndvi_masked, ndvi_unmasked, irr_csv, out_json, plots=None, i
 
         for yr in years:
 
-            # if not c == '1779':
-            #     continue
-            #
-            # if not yr == 2004:
-            #     continue
+            if not c == '1786':
+                continue
+
+            if not yr == 2008:
+                continue
 
             f_irr = irr.at[int(c), 'irr_{}'.format(yr)]
             irrigated = f_irr > irr_threshold
@@ -209,7 +119,9 @@ def detect_cuttings(ndvi_masked, ndvi_unmasked, irr_csv, out_json, plots=None, i
                 fallow.append(yr)
                 continue
 
+            irr_doys = []
             green_start_dates, cut_dates = [], []
+            green_start_doys, cut_doys = [], []
             irr_dates, cut_dates, pk_dates = [], [], []
 
             if irrigated:
@@ -226,6 +138,7 @@ def detect_cuttings(ndvi_masked, ndvi_unmasked, irr_csv, out_json, plots=None, i
 
                     if sign > 0:
                         date = df.index[green]
+                        green_start_doys.append(date)
                         dts = '{}-{:02d}-{:02d}'.format(date.year, date.month, date.day)
                         green_start_dates.append(dts)
 
@@ -237,9 +150,12 @@ def detect_cuttings(ndvi_masked, ndvi_unmasked, irr_csv, out_json, plots=None, i
 
                     if on_peak:
                         date = df.index[pk]
+                        cut_doys.append(date)
                         dts = '{}-{:02d}-{:02d}'.format(date.year, date.month, date.day)
                         cut_dates.append(dts)
 
+                irr_doys = [[i for i in range(s.dayofyear, e.dayofyear)] for s, e in zip(green_start_doys, cut_doys)]
+                irr_doys = list(np.array(irr_doys, dtype=object).flatten())
                 irr_windows = [(gu, cd) for gu, cd in zip(green_start_dates, cut_dates)]
 
                 if not irr_windows:
@@ -247,23 +163,25 @@ def detect_cuttings(ndvi_masked, ndvi_unmasked, irr_csv, out_json, plots=None, i
                     roll = roll.loc[[i for i in roll.index if 3 < i.month < 11]]
                     roll['crossing'] = (roll[c] != roll[c].shift()).cumsum()
                     roll['count'] = roll.groupby([c, 'crossing']).cumcount(ascending=True)
+                    irr_doys = [i.dayofyear for i in roll[roll[c]].index]
                     roll = roll[(roll['count'] == 0 & roll[c])]
                     start_idx, end_idx = list(roll.loc[roll[c] == 1].index), list(roll.loc[roll[c] == 0].index)
                     start_idx = ['{}-{:02d}-{:02d}'.format(d.year, d.month, d.day) for d in start_idx]
                     end_idx = ['{}-{:02d}-{:02d}'.format(d.year, d.month, d.day) for d in end_idx]
                     irr_windows = [(s, e) for s, e in zip(start_idx, end_idx)]
 
-                elif plots:
-                    os.remove(os.path.join(plots, '{}_{}_comb.png'.format(c, yr)))
-
             else:
                 irr_windows = []
 
             count.append(len(pk_dates))
+
+            green_start_dates = list(np.unique(np.array(green_start_dates)))
+
             fields[c][yr] = {'pk_count': len(pk_dates),
                              'green_ups': green_start_dates,
                              'cut_dates': cut_dates,
                              'irr_windows': irr_windows,
+                             'irr_doys': irr_doys,
                              'irrigated': int(irrigated),
                              'f_irr': f_irr}
 
@@ -290,51 +208,34 @@ def plot_peaks(field_id, yr, plots):
 
 
 if __name__ == '__main__':
-    is_authorized()
-    bucket_ = 'wudr'
 
     root = '/home/dgketchum/PycharmProjects/et-demands/examples/tongue'
 
-    fc = ee.FeatureCollection(ee.Feature(ee.Geometry.Polygon([[-105.85544392193924, 46.105576651626485],
-                                                              [-105.70747181500565, 46.105576651626485],
-                                                              [-105.70747181500565, 46.222566236544104],
-                                                              [-105.85544392193924, 46.222566236544104],
-                                                              [-105.85544392193924, 46.105576651626485]]),
-                                         {'key': 'Tongue_Ex'}))
-
-    types_ = ['no_mask', 'irr', 'inv_irr']
+    types_ = ['irr', 'inv_irr']
+    sensing_param = 'etf'
 
     for mask_type in types_:
-
-        for y in [x for x in range(1987, 2022)]:
-            # export_ndvi(fc, y, bucket_, debug=False, mask_type=mask_type)
-            pass
 
         yrs = [x for x in range(1987, 2022)]
         shp = os.path.join(root, 'gis', 'tongue_fields_sample.shp')
 
-        tif, ndvi_src = None, None
-        if mask_type == 'no_mask':
-            tif = os.path.join(root, 'landsat', 'ndvi', 'input_unmasked')
-            ndvi_src = os.path.join(root, 'landsat', 'tongue_ndvi_unmasked_sample.csv')
-        elif mask_type == 'irr':
-            tif = os.path.join(root, 'landsat', 'ndvi', 'input_masked')
-            ndvi_src = os.path.join(root, 'landsat', 'tongue_ndvi_masked_sample.csv')
+        tif, src = None, None
+
+        if mask_type == 'irr':
+            tif = os.path.join(root, 'landsat', sensing_param, 'input_masked')
+            src = os.path.join(root, 'landsat', 'tongue_{}_masked_sample.csv'.format(sensing_param))
         elif mask_type == 'inv_irr':
-            tif = os.path.join(root, 'landsat', 'ndvi', 'input_inv_mask')
-            ndvi_src = os.path.join(root, 'landsat', 'tongue_ndvi_inv_mask_sample.csv')
+            tif = os.path.join(root, 'landsat', sensing_param, 'input_inv_mask')
+            src = os.path.join(root, 'landsat', 'tongue_{}_inv_mask_sample.csv'.format(sensing_param))
 
-        # landsat_ndvi_time_series(shp, tif, yrs, ndvi_src)
-
-    plot_dir_ = './plots'
-    # plot_ndvi(csv_, plot_dir_)
+        # landsat_time_series(shp, tif, yrs, src)
 
     irr_ = os.path.join(root, 'landsat', 'tongue_sample_irr.csv')
-    js_ = os.path.join(root, 'landsat', 'tongue_ndvi_cuttings.json')
+    js_ = os.path.join(root, 'landsat', 'tongue_{}_cuttings.json'.format(sensing_param))
     figs = '/home/dgketchum/Downloads/cuttings'
 
-    masked_ = os.path.join(root, 'landsat', 'tongue_ndvi_masked_sample.csv')
-    ndvi_inv_mask_ = os.path.join(root, 'landsat', 'tongue_ndvi_inv_mask_sample.csv')
+    masked_ = os.path.join(root, 'landsat', 'tongue_{}_masked_sample.csv'.format(sensing_param))
+    _inv_mask = os.path.join(root, 'landsat', 'tongue_{}_inv_mask_sample.csv'.format(sensing_param))
 
-    detect_cuttings(masked_, ndvi_inv_mask_, irr_, js_, plots=None, irr_threshold=0.5)
+    detect_cuttings(masked_, _inv_mask, irr_, js_, plots=figs, irr_threshold=0.5)
 # ========================= EOF ================================================================================
