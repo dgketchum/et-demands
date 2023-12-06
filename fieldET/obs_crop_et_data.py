@@ -11,11 +11,13 @@ import os
 import pandas as pd
 import sys
 
-import crop_parameters
-import util
+from fieldET.crop_parameters import CropParameters
+
+from fieldET import util
+from fieldET.crop_et_data import CropETData
 
 
-class CropETData:
+class ObsFieldETData(CropETData):
     """Crop et data container
 
     Attributes
@@ -23,8 +25,9 @@ class CropETData:
 
     """
 
-    def __init__(self):
-        """ """
+    def __init__(self, field_type='irrigated'):
+        super().__init__()
+        self.field_type = field_type
 
     def __str__(self):
         """ """
@@ -70,9 +73,11 @@ class CropETData:
         # Original INI Format (Add phenology (hist_temps_sec) to original INI)
         original = True
 
+        self.kc_proxy = config.get(crop_et_sec, 'kc_proxy')
+
         # verify existence of common required sections
         if crop_et_sec not in cfg_secs or refet_sec not in cfg_secs or \
-                weather_sec not in cfg_secs:
+            weather_sec not in cfg_secs:
             logging.error(
                 '\nERROR:input file must have following sections:\n' +
                 '  [{}], [{}], and [{}]'.format(crop_et_sec, weather_sec,
@@ -144,7 +149,7 @@ class CropETData:
                 self.phenology_option = config.getint(
                     hist_temps_sec, 'phenology_option')
                 if self.phenology_option is None or \
-                        self.phenology_option == 'None':
+                    self.phenology_option == 'None':
                     self.phenology_option = 0
             except:
                 self.phenology_option = 0
@@ -163,6 +168,12 @@ class CropETData:
         if not os.path.isdir(self.static_folder):
             self.static_folder = os.path.join(self.project_ws,
                                               self.static_folder)
+
+        self.sensing_folder = config.get(crop_et_sec, 'sensing_folder')
+
+        cell_crops_name = config.get(crop_et_sec,
+                                     'cell_crops_name')
+        self.cell_crops_path = os.path.join(self.static_folder, cell_crops_name)
 
         # elevation units
         try:
@@ -205,29 +216,7 @@ class CropETData:
         self.cell_properties_names_line = 1
         self.cell_properties_header_lines = 1
 
-        # et cells crops
-        try:
-            cell_crops_name = config.get(crop_et_sec, 'cell_crops_name')
-            if cell_crops_name is None or cell_crops_name == 'None':
-                logging.error('ERROR:  ET Cells crops data file must be'
-                              ' specified')
-                sys.exit()
-        except:
-            logging.error('ERROR:  ET Cells crops data file must be specified')
-            sys.exit()
-        self.cell_crops_path = os.path.join(self.static_folder, cell_crops_name)
-        if not os.path.isfile(self.cell_crops_path):
-            self.cell_crops_path = cell_crops_name
-            if not os.path.isfile(self.cell_crops_path):
-                logging.error('ERROR:  ET Cells crops file {} does not exist'
-                              .format(self.self.cell_crops_path))
-                sys.exit()
-        logging.info('  ET Cell crops file: {}'.format(self.cell_crops_path))
-
-        self.cell_crops_delimiter = '\t'
-        self.cell_crops_ws = ''
-        self.cell_crops_header_lines = 3
-        self.cell_crops_names_line = 2
+        self.crop_coefs_path = config.get(crop_et_sec, 'coeff_folder')
 
         # et cells cuttings
         try:
@@ -240,8 +229,8 @@ class CropETData:
             logging.error('ERROR:  ET Cells cuttings data file must be'
                           ' specified')
             sys.exit()
-        self.cell_cuttings_path =\
-            os.path.join(self.static_folder, cell_cuttings_name)
+        self.cell_cuttings_path = \
+            os.path.join(self.sensing_folder, cell_cuttings_name)
         if not os.path.isfile(self.cell_cuttings_path):
             self.cell_cuttings_path = cell_cuttings_name
             if not os.path.isfile(self.cell_cuttings_path):
@@ -281,57 +270,6 @@ class CropETData:
             self.crop_params_ws = ''
             self.crop_params_header_lines = 4
             self.crop_params_names_line = 3
-
-        # set crop coefficient specs
-        try:
-            crop_coefs_name = config.get(crop_et_sec, 'crop_coefs_name')
-            if crop_coefs_name is None or crop_coefs_name == 'None':
-                logging.error('ERROR:  Crop coefficients data file must be'
-                              ' specified')
-                sys.exit()
-        except:
-            logging.error('ERROR:  Crop coefficients data file must be'
-                          ' specified')
-            sys.exit()
-        self.crop_coefs_path = os.path.join(self.static_folder, crop_coefs_name)
-        if not os.path.isfile(self.crop_coefs_path):
-            self.crop_coefs_path = crop_coefs_name
-            if not os.path.isfile(self.crop_coefs_path):
-                logging.error('ERROR:  crop coefficients file {} does not'
-                              ' exist'.format(self.self.crop_coefs_path))
-                sys.exit()
-        logging.info('  Crop coefficients file: {}'
-                     .format(self.crop_coefs_path))
-
-        self.crop_coefs_delimiter = '\t'
-        self.crop_coefs_ws = ''
-        self.crop_coefs_names_line = 1
-        self.crop_coefs_header_lines = 1
-
-        # reference ET adjustment ratios
-        try:
-            et_ratios_name = config.get(crop_et_sec,
-                                         'et_ratios_name')
-            self.refet_ratios_path = os.path.join(self.static_folder,
-                                                  et_ratios_name)
-        except configparser.NoOptionError:
-            logging.info('\net_ratios_name not found in INI. Setting to None.')
-            self.refet_ratios_path = None
-
-        if self.refet_ratios_path and not os.path.isfile(
-                self.refet_ratios_path):
-            logging.error('Warning:  ET Ratios file not found. ET scaling will not be applied.')
-            self.refet_ratios_path = None
-
-        # Default et_ratios file format
-        self.et_ratios_delimiter = '\t'
-        self.et_ratios_ws = ''
-        self.et_ratios_header_lines = 1
-        self.et_ratios_names_line = 1
-        self.et_ratios_id_field = 'Met Node ID'
-        self.et_ratios_name_field = 'Met Node Name'
-        self.et_ratios_month_field = 'month'
-        self.et_ratios_ratio_field = 'ratio'
 
         """
         INI [CROP_ET] Section
@@ -420,7 +358,7 @@ class CropETData:
                     self.project_ws,
                     config.get(crop_et_sec, 'daily_output_folder'))
                 if not os.path.isdir(self.cet_out['daily_output_ws']):
-                   os.makedirs(self.cet_out['daily_output_ws'])
+                    os.makedirs(self.cet_out['daily_output_ws'])
             except:
                 logging.debug('    daily_output_folder = daily_stats')
                 self.cet_out['daily_output_ws'] = 'daily_stats'
@@ -430,7 +368,7 @@ class CropETData:
                     self.project_ws,
                     config.get(crop_et_sec, 'monthly_output_folder'))
                 if not os.path.isdir(self.cet_out['monthly_output_ws']):
-                   os.makedirs(self.cet_out['monthly_output_ws'])
+                    os.makedirs(self.cet_out['monthly_output_ws'])
             except:
                 logging.debug('    monthly_output_folder = monthly_stats')
                 self.cet_out['monthly_output_ws'] = 'monthly_stats'
@@ -440,7 +378,7 @@ class CropETData:
                     self.project_ws,
                     config.get(crop_et_sec, 'annual_output_folder'))
                 if not os.path.isdir(self.cet_out['annual_output_ws']):
-                   os.makedirs(self.cet_out['annual_output_ws'])
+                    os.makedirs(self.cet_out['annual_output_ws'])
             except:
                 logging.debug('    annual_output_folder = annual_stats')
                 self.cet_out['annual_output_ws'] = 'annual_stats'
@@ -450,7 +388,7 @@ class CropETData:
                     self.project_ws,
                     config.get(crop_et_sec, 'gs_output_folder'))
                 if not os.path.isdir(self.gs_output_ws):
-                   os.makedirs(self.gs_output_ws)
+                    os.makedirs(self.gs_output_ws)
             except:
                 logging.debug('    gs_output_folder = growing_season_stats')
                 self.gs_output_ws = 'growing_season_stats'
@@ -512,11 +450,12 @@ class CropETData:
         except:
             self.gs_limit_flag = True
 
-
         # Spatially varying calibration
-        try: self.spatial_cal_flag = config.getboolean(crop_et_sec,
-                                                       'spatial_cal_flag')
-        except: self.spatial_cal_flag = False
+        try:
+            self.spatial_cal_flag = config.getboolean(crop_et_sec,
+                                                      'spatial_cal_flag')
+        except:
+            self.spatial_cal_flag = False
         try:
             self.spatial_cal_ws = config.get(crop_et_sec, 'spatial_cal_folder')
         except:
@@ -532,7 +471,7 @@ class CropETData:
             self.cet_out['daily_date_format'] = config.get(
                 crop_et_sec, 'daily_date_format')
             if self.cet_out['daily_date_format'] is None or \
-                    self.cet_out['daily_date_format'] == 'None':
+                self.cet_out['daily_date_format'] == 'None':
                 self.cet_out['daily_date_format'] = '%Y-%m-%d'
         except:
             self.cet_out['daily_date_format'] = '%Y-%m-%d'
@@ -547,7 +486,7 @@ class CropETData:
             self.cet_out['monthly_date_format'] = config.get(
                 crop_et_sec, 'monthly_date_format')
             if self.cet_out['monthly_date_format'] is None or \
-                    self.cet_out['monthly_date_format'] == 'None':
+                self.cet_out['monthly_date_format'] == 'None':
                 self.cet_out['monthly_date_format'] = '%Y-%m'
         except:
             self.cet_out['monthly_date_format'] = '%Y-%m'
@@ -562,7 +501,7 @@ class CropETData:
             self.cet_out['annual_date_format'] = config.get(
                 crop_et_sec, 'annual_date_format')
             if self.cet_out['monthly_date_format'] is None or \
-                    self.cet_out['monthly_date_format'] == 'None':
+                self.cet_out['monthly_date_format'] == 'None':
                 self.cet_out['annual_date_format'] = '%Y'
         except:
             self.cet_out['annual_date_format'] = '%Y'
@@ -611,17 +550,17 @@ class CropETData:
         try:
             self.refet['delimiter'] = config.get(refet_sec, 'delimiter')
             if self.refet['delimiter'] is None or \
-                    self.refet['delimiter'] == 'None':
+                self.refet['delimiter'] == 'None':
                 self.refet['delimiter'] = ','
             else:
                 if self.refet['delimiter'] not in [' ', ',', '\\t']:
                     self.refet['delimiter'] = ','
                 if "\\" in self.refet['delimiter'] and \
-                        "t" in self.refet['delimiter']:
+                    "t" in self.refet['delimiter']:
                     self.refet['delimiter'] = \
                         self.refet['delimiter'].replace('\\t', '\t')
         except:
-                self.refet['delimiter'] = ','
+            self.refet['delimiter'] = ','
 
         # Field names and units
         # Date can be read directly or computed from year, month, and day
@@ -660,7 +599,7 @@ class CropETData:
         except:
             self.refet['fnspec'] = self.refet['fields']['etref']
         try:
-           self.refet['units']['etref'] = config.get(refet_sec, 'etref_units')
+            self.refet['units']['etref'] = config.get(refet_sec, 'etref_units')
         except:
             logging.error('  ERROR: REFET etref_units must set in INI')
             sys.exit()
@@ -708,7 +647,7 @@ class CropETData:
             sys.exit()
 
         self.weather['file_type'] = 'csv'
-         # self.weather['data_structure_type'] = 'SF P'
+        # self.weather['data_structure_type'] = 'SF P'
         self.weather['name_format'] = config.get(weather_sec, 'name_format')
         self.weather['header_lines'] = config.getint(weather_sec,
                                                      'header_lines')
@@ -716,17 +655,17 @@ class CropETData:
         try:
             self.weather['delimiter'] = config.get(weather_sec, 'delimiter')
             if self.weather['delimiter'] is None or \
-                    self.weather['delimiter'] == 'None':
+                self.weather['delimiter'] == 'None':
                 self.weather['delimiter'] = ','
             else:
                 if self.weather['delimiter'] not in [' ', ',', '\\t']:
                     self.weather['delimiter'] = ','
                 if "\\" in self.weather['delimiter'] and \
-                        "t" in self.weather['delimiter']:
+                    "t" in self.weather['delimiter']:
                     self.weather['delimiter'] = \
                         self.weather['delimiter'].replace('\\t', '\t')
         except:
-                self.weather['delimiter'] = ','
+            self.weather['delimiter'] = ','
 
         # Field names and units
         # Date can be read directly or computed from year, month, and day
@@ -769,7 +708,7 @@ class CropETData:
                     weather_sec, f_name + '_field')
             except:
                 logging.error(('  ERROR: WEATHER {}_field must be set ' +
-                     'in INI').format(f_name))
+                               'in INI').format(f_name))
                 sys.exit()
 
         # Units
@@ -804,18 +743,22 @@ class CropETData:
             self.weather['fields']['snow'] = config.get(weather_sec,
                                                         'snow_field')
             if self.weather['fields']['snow'] is None or \
-                    self.weather['fields']['snow'] == 'None':
+                self.weather['fields']['snow'] == 'None':
                 self.weather['fields']['snow'] = 'Snow'
                 self.weather['units']['snow'] = 'mm/day'
                 self.weather['fnspec']['snow'] = 'Estimated'
             else:
-                try: self.weather['units']['snow'] = config.get(weather_sec,
-                                                                'snow_units')
-                except: self.weather['units']['snow'] = 'mm/day'
-                try: self.weather['fnspec']['snow'] = config.get(weather_sec,
-                                                                 'snow_name')
-                except: self.weather['fnspec']['snow'] = \
-                    self.weather['fields']['snow']
+                try:
+                    self.weather['units']['snow'] = config.get(weather_sec,
+                                                               'snow_units')
+                except:
+                    self.weather['units']['snow'] = 'mm/day'
+                try:
+                    self.weather['fnspec']['snow'] = config.get(weather_sec,
+                                                                'snow_name')
+                except:
+                    self.weather['fnspec']['snow'] = \
+                        self.weather['fields']['snow']
         except:
             self.weather['fields']['snow'] = 'Snow'
             self.weather['units']['snow'] = 'mm/day'
@@ -825,22 +768,22 @@ class CropETData:
             self.weather['fields']['snow_depth'] = config.get(weather_sec,
                                                               'depth_field')
             if self.weather['fields']['snow_depth'] is None or \
-                    self.weather['fields']['snow_depth'] == 'None':
+                self.weather['fields']['snow_depth'] == 'None':
                 self.weather['fields']['snow_depth'] = 'SDep'
                 self.weather['units']['snow_depth'] = 'mm'
                 self.weather['fnspec']['snow_depth'] = 'Estimated'
             else:
                 try:
                     self.weather['units']['snow_depth'] = \
-                    config.get(weather_sec, 'depth_units')
+                        config.get(weather_sec, 'depth_units')
                 except:
                     self.weather['units']['snow_depth'] = 'mm'
                 try:
                     self.weather['fnspec']['snow_depth'] = \
-                    config.get(weather_sec, 'depth_name')
+                        config.get(weather_sec, 'depth_name')
                 except:
                     self.weather['fnspec']['snow_depth'] = \
-                    self.weather['fields']['snow_depth']
+                        self.weather['fields']['snow_depth']
         except:
             self.weather['fields']['snow_depth'] = 'SDep'
             self.weather['units']['snow_depth'] = 'mm'
@@ -860,7 +803,7 @@ class CropETData:
                 continue
             # Check if field is None or ''
             if self.weather['fields'][x] is None or self.weather['fields'][
-                    x].lower() in ['', 'None']:
+                x].lower() in ['', 'None']:
                 logging.info(x + 'field was not set or was set to none')
                 continue
             # If field exists check for units
@@ -873,7 +816,7 @@ class CropETData:
                     continue
             # Check if units is None or ''
             if self.weather['units'][x] is None or self.weather['units'][
-                    x].lower() in ['', 'None']:
+                x].lower() in ['', 'None']:
                 logging.debug(x + 'units was not set or was set to none')
                 continue
             # If field and units exist; add fnspec (field for now)
@@ -925,8 +868,8 @@ class CropETData:
 
             # Check that at least one CO2 field was set in INI
             if (not self.weather['fields']['co2_grass'] and
-                    not self.weather['fields']['co2_tree'] and
-                    not self.weather['fields']['co2_c4']):
+                not self.weather['fields']['co2_tree'] and
+                not self.weather['fields']['co2_c4']):
                 logging.error(
                     '  ERROR: WEATHER CO2 field names must be set in ' +
                     'the INI if co2_flag = True')
@@ -963,8 +906,8 @@ class CropETData:
 
             # Check that at least one CO2 field was set in INI
             if (not self.weather['fields']['co2_grass'] and
-                    not self.weather['fields']['co2_tree'] and
-                    not self.weather['fields']['co2_c4']):
+                not self.weather['fields']['co2_tree'] and
+                not self.weather['fields']['co2_c4']):
                 logging.error(
                     '  ERROR: WEATHER CO2 field names must be set in ' +
                     'the INI if co2_flag = True')
@@ -1000,19 +943,19 @@ class CropETData:
 
             # Check if data fields are present for all CO2 classes with crops
             if (self.co2_grass_crops and
-                    not self.weather['fields']['co2_grass']):
+                not self.weather['fields']['co2_grass']):
                 logging.error(
                     '  ERROR: WEATHER CO2 grass field name is not set in ' +
                     ' INI file but CO2 grass crops are listed')
                 sys.exit()
             elif (self.co2_tree_crops and
-                    not self.weather['fields']['co2_tree']):
+                  not self.weather['fields']['co2_tree']):
                 logging.error(
                     '  ERROR: WEATHER CO2 tree field name is not set in ' +
                     ' INI file but CO2 tree crops are listed')
                 sys.exit()
             elif (self.co2_c4_crops and
-                    not self.weather['fields']['co2_c4']):
+                  not self.weather['fields']['co2_c4']):
                 logging.error(
                     '  ERROR: WEATHER CO2 C4 field name is not set in ' +
                     ' INI file but CO2 C4 crops are listed')
@@ -1079,7 +1022,7 @@ class CropETData:
                 self.hist_temps['file_type'] = config.get(
                     hist_temps_sec, 'file_type')
                 if self.hist_temps['file_type'] is None or \
-                        self.hist_temps['file_type'] == 'None':
+                    self.hist_temps['file_type'] == 'None':
                     self.hist_temps['file_type'] = 'csv'
             except:
                 self.hist_temps['file_type'] = 'csv'
@@ -1093,17 +1036,17 @@ class CropETData:
                 self.hist_temps['delimiter'] = config.get(hist_temps_sec,
                                                           'delimiter')
                 if self.hist_temps['delimiter'] is None or \
-                        self.hist_temps['delimiter'] == 'None':
+                    self.hist_temps['delimiter'] == 'None':
                     self.hist_temps['delimiter'] = ','
                 else:
                     if self.hist_temps['delimiter'] not in [' ', ',', '\\t']:
                         self.hist_temps['delimiter'] = ','
                     if "\\" in self.hist_temps['delimiter'] and \
-                            "t" in self.hist_temps['delimiter']:
+                        "t" in self.hist_temps['delimiter']:
                         self.hist_temps['delimiter'] = \
                             self.hist_temps['delimiter'].replace('\\t', '\t')
             except:
-                    self.hist_temps['delimiter'] = ','
+                self.hist_temps['delimiter'] = ','
 
             # Field names and units
             # Date can be read directly or computed from year, month, and day
@@ -1143,7 +1086,7 @@ class CropETData:
                         hist_temps_sec, f_name + '_field')
                 except:
                     logging.error(('  ERROR: hist_temps {}_field must be set ' +
-                         'in INI').format(f_name))
+                                   'in INI').format(f_name))
                     sys.exit()
 
             # Units
@@ -1190,58 +1133,6 @@ class CropETData:
                          'currently supported').format(k, v))
                     sys.exit()
 
-        # Check if refet_type matches crop_coefs_name
-        if self.refet['type'] not in self.crop_coefs_path.lower():
-            logging.warning('\nRefET Type does not match crop_coefs file name.'
-                            ' Check the ini')
-            logging.info('  refet_type = {}'.format(self.refet['type']))
-            logging.info('  crop_coefs_name = {}'.format(self.crop_coefs_path))
-            input('Press ENTER to continue or Ctrl+C to exit')
-
-    def set_crop_params(self):
-        """ List of <CropParameter> instances
-
-        Parameters
-        ---------
-        None
-
-        Returns
-        -------
-        None
-
-        """
-
-        logging.info('  Reading crop parameters from\n' + self.crop_params_path)
-
-        params_df = pd.read_csv(self.crop_params_path,
-                                  delimiter=self.crop_params_delimiter,
-                                  header=None,
-                                  skiprows=self.crop_params_header_lines - 1,
-                                  na_values=['NaN'])
-        params_df.applymap(str)
-        params_df.fillna('0', inplace=True)
-        self.crop_params = {}
-        for crop_i in range(2, len(list(params_df.columns))):
-            crop_param_data = params_df[crop_i].values.astype(str)
-            crop_num = abs(int(crop_param_data[1]))
-            self.crop_params[crop_num] = \
-                crop_parameters.CropParameters(crop_param_data)
-
-        # Filter crop parameters based on skip and test lists
-        # Filtering could happen in read_crop_parameters()
-
-        if self.crop_skip_list or self.crop_test_list:
-            # Leave bare soil "crop" parameters
-            # Used in initialize_crop_cycle()
-
-            non_crop_list = [44]
-            # non_crop_list = [44,45,46,55,56,57]
-            self.crop_params = {
-                k: v for k, v in self.crop_params.items()
-                if ((self.crop_skip_list and k not in self.crop_skip_list) or
-                    (self.crop_test_list and k in self.crop_test_list) or
-                    (k in non_crop_list))}
-
     def set_crop_co2(self):
         """Set crop CO2 type using values in INI
 
@@ -1270,25 +1161,49 @@ class CropETData:
                 crop_param.co2_type = None
             self.crop_params[crop_num] = crop_param
 
-def console_logger(logger=logging.getLogger(''), log_level=logging.INFO):
-    # Create console logger
-    logger.setLevel(log_level)
-    log_console = logging.StreamHandler(stream=sys.stdout)
-    log_console.setLevel(log_level)
-    log_console.setFormatter(logging.Formatter('%(message)s'))
-    logger.addHandler(log_console)
-    return logger
+    def set_crop_params(self):
+        """ List of <CropParameter> instances
 
-# CHECK THAT INI USED IN TESTS EXISTS AND IS UP TO DATE
-def do_tests():
-    # Simple testing of functions as developed
-    # logger = console_logger(log_level = 'DEBUG')
-    logger = console_logger(log_level=logging.DEBUG)
-    ini_path = os.getcwd() + os.sep + "cet_template.ini"
-    cfg = CropETData()
-    cfg.read_cet_ini(ini_path, True)
+        Parameters
+        ---------
+        None
 
+        Returns
+        -------
+        None
 
-if __name__ == '__main__':
-    # testing during development
-    do_tests()
+        """
+        # TODO: get to a point where this can be removed.
+        logging.info('  Reading crop parameters from\n' + self.crop_params_path)
+
+        params_df = pd.read_csv(self.crop_params_path,
+                                delimiter=self.crop_params_delimiter,
+                                header=None,
+                                skiprows=self.crop_params_header_lines - 1,
+                                na_values=['NaN'])
+        params_df.applymap(str)
+        params_df.fillna('0', inplace=True)
+        self.crop_params = {}
+        for crop_i in range(2, len(list(params_df.columns))):
+            crop_param_data = params_df[crop_i].values.astype(str)
+            crop_num = abs(int(crop_param_data[1]))
+            self.crop_params[crop_num] = \
+                CropParameters(crop_param_data)
+
+            self.crop_params[crop_num].curve_type = 5
+            self.crop_params[crop_num].flag_for_means_to_estimate_pl_or_gu = 5
+
+        # Filter crop parameters based on skip and test lists
+        # Filtering could happen in read_crop_parameters()
+
+        if self.crop_skip_list or self.crop_test_list:
+            # Leave bare soil "crop" parameters
+            # Used in initialize_crop_cycle()
+
+            non_crop_list = [44]
+            # non_crop_list = [44,45,46,55,56,57]
+            self.crop_params = {
+                k: v for k, v in self.crop_params.items()
+                if ((self.crop_skip_list and k not in self.crop_skip_list) or
+                    (self.crop_test_list and k in self.crop_test_list) or
+                    (k in non_crop_list))}

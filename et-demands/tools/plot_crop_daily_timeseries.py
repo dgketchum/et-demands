@@ -455,39 +455,48 @@ def parse_args():
     return args
 
 if __name__ == '__main__':
-    args = parse_args()
+    # args = parse_args()
 
     # Try using command line argument if it was set
     
-    if args.ini:
-        ini_path = args.ini
+    # if args.ini:
+    #     ini_path = args.ini
 
     # If script was double clicked, set project folder with GUI
     
-    elif 'PROMPT' not in os.environ:
-        ini_path = util.get_path(os.getcwd(), 'Selecttarget INI file')
+    # elif 'PROMPT' not in os.environ:
+    #     ini_path = util.get_path(os.getcwd(), 'Selecttarget INI file')
         
     # Try using current working directory if there is only one INI
     # Could look for daily_stats folder, run_basin.py, and/or ini file
     
-    elif len([x for x in os.listdir(os.getcwd()) if x.lower().endswith('.ini')]) == 1:
-        ini_path = [
-            os.path.join(os.getcwd(), x) for x in os.listdir(os.getcwd())
-            if x.lower().endswith('.ini')][0]
+    # elif len([x for x in os.listdir(os.getcwd()) if x.lower().endswith('.ini')]) == 1:
+    #     ini_path = [
+    #         os.path.join(os.getcwd(), x) for x in os.listdir(os.getcwd())
+    #         if x.lower().endswith('.ini')][0]
             
     # Eventually list available INI files and promp tuser to select one
     # For now though, use GUI
     
+    # else:
+    #     ini_path = util.get_path(os.getcwd(), 'Selecttarget INI file')
+
+    # logging.basicConfig(level = args.loglevel, format = '%(message)s')
+    # logging.info('\n{0}'.format('#' * 80))
+    # logging.info('{0:<20s} {1}'.format(
+    #     'Run Time Stamp:', dt.datetime.now().isoformat(' ')))
+    # logging.info('{0:<20s} {1}'.format('Current Directory:', os.getcwd()))
+    # logging.info('{0:<20s} {1}'.format('Script:', os.path.basename(sys.argv[0])))
+
+    # obs_flag = False
+    obs_flag = True
+
+    if obs_flag:
+        ini = '/home/dgketchum/PycharmProjects/et-demands/examples/tongue/tongue_example_cet_obs.ini'
     else:
-        ini_path = util.get_path(os.getcwd(), 'Selecttarget INI file')
+        ini = '/home/dgketchum/PycharmProjects/et-demands/examples/tongue/tongue_example_cet.ini'
 
-    logging.basicConfig(level = args.loglevel, format = '%(message)s')
-    logging.info('\n{0}'.format('#' * 80))
-    logging.info('{0:<20s} {1}'.format(
-        'Run Time Stamp:', dt.datetime.now().isoformat(' ')))
-    logging.info('{0:<20s} {1}'.format('Current Directory:', os.getcwd()))
-    logging.info('{0:<20s} {1}'.format('Script:', os.path.basename(sys.argv[0])))
-
-    main(ini_path, figure_show_flag=args.show,
-         figure_save_flag=args.no_save, figure_size=args.size,
-         start_date=args.start, end_date=args.end, crop_str=args.crops)
+    logging.basicConfig(level=logging.ERROR)
+    overwrite = True
+    main(ini_path=ini, figure_show_flag=False,
+         figure_save_flag=True)

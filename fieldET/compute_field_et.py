@@ -9,9 +9,9 @@ import logging
 import math
 import sys
 
-import grow_root
-import util
-import runoff
+from fieldET import grow_root
+from fieldET import util
+from fieldET import runoff
 
 
 def compute_field_et(data, et_cell, crop, foo, foo_day, debug_flag=False):
@@ -75,26 +75,6 @@ def compute_field_et(data, et_cell, crop, foo, foo_day, debug_flag=False):
             kc_max = 1.0
     else:
         sys.exit()
-
-    # ETr basis:
-    # kc_max = 1#  #'for ETr ******************* #'commented out 12/2007
-
-    # Assign fraction of ground covered for each of three non-growing season cover types
-
-    if crop.class_number not in [44, 45, 46]:
-        pass
-    elif crop.class_number == 44:
-        # Bare soil (changed Jan. 2007 for add. crop cats)
-        foo.fc = 0.0
-    elif crop.class_number == 45:
-        # Mulched soil, including grain stubble
-        foo.fc = 0.4
-    elif crop.class_number == 46:
-        # Dormant turf/sod (winter time) (was 0.6)
-        foo.fc = 0.7
-
-    # Kc_max and foo.fc for wintertime land use (Nov-Mar)
-    # wscc = 1 bare, 2 mulch, 3 sod
 
     wscc = crop.winter_surface_cover_class
 
@@ -481,6 +461,7 @@ def compute_field_et(data, et_cell, crop, foo, foo_day, debug_flag=False):
     taw = foo.aw * foo.zr
     taw = max(taw, 0.001)
 
+    # MAD: Management Allowable Depletion
     # MAD is set to mad_ini or mad_mid in kcb_daily sub.
 
     raw = foo.mad * taw / 100
