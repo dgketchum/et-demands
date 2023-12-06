@@ -58,7 +58,7 @@ def main(ini_path, bin_ws='', verbose_flag=False,
         print('Source code directory path (-b) not provided')
         sys.exit()
     else:
-        script_path = os.path.join(bin_ws, 'mod_crop_et.py')
+        script_path = os.path.join(bin_ws, '../../fieldET/run_field_et.py')
 
     # Check input folder/path
     if not os.path.isfile(ini_path):

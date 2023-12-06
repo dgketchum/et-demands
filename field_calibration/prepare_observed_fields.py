@@ -157,7 +157,7 @@ if __name__ == '__main__':
     ndvi_inv_mask_ = os.path.join(d, 'examples', 'tongue', 'landsat', 'tongue_ndvi_inv_mask_sample.csv')
     etf_inv_mask_ = os.path.join(d, 'examples', 'tongue', 'landsat', 'tongue_etf_inv_mask_sample.csv')
     et_data_ = '/media/research/IrrigationGIS/Montana/tongue/all_data.csv'
-    dst_dir_ = os.path.join(d, 'examples', 'tongue', 'landsat', 'ndvi', 'field_daily')
+    dst_dir_ = os.path.join(d, 'examples', 'tongue', 'landsat', 'field_daily')
     join_gridmet_remote_sensing_daily(fields_gridmet, gridmet_, ndvi_masked_, ndvi_inv_mask_, etf_masked_,
                                       etf_inv_mask_, et_data_, dst_dir_)
 

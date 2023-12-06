@@ -12,10 +12,10 @@ import os
 import numpy as np
 import pandas as pd
 
-import compute_field_et
-from initialize_obs_crop_cycle import InitializeObsCropCycle
-import obs_kcb_daily
-import calculate_height
+from fieldET import compute_field_et
+from fieldET.initialize_obs_crop_cycle import InitializeObsCropCycle
+from fieldET import obs_kcb_daily
+from fieldET import calculate_height
 
 
 class DayData:
@@ -34,7 +34,7 @@ class DayData:
         self.etref_array = np.zeros(30)
 
 
-def field_day_loop(data, et_cell, ndvid_coeff, debug_flag=False):
+def field_day_loop(data, et_cell, debug_flag=False, return_df=False, **kwargs):
     """Compute crop et for each daily timestep at a field
 
     Parameters
@@ -80,7 +80,12 @@ def field_day_loop(data, et_cell, ndvid_coeff, debug_flag=False):
 
     # First time through for crop, load basic crop parameters and
     # process climate data
-    foo.crop_load(data, et_cell, crop, ndvid_coeff)
+    foo.crop_load(data, et_cell, crop)
+
+    # apply calibration parameter updates here
+    if kwargs:
+        for k, v in kwargs.items():
+            foo.__setattr__(k, v)
 
     # GetCO2 correction factors for each crop
     if data.co2_flag:
@@ -195,7 +200,7 @@ def field_day_loop(data, et_cell, ndvid_coeff, debug_flag=False):
         calculate_height.calculate_height(crop, foo, debug_flag)
 
         # Interpolate Kcb and make climate adjustment (for ETo basis)
-        obs_kcb_daily.kcb_daily(data, et_cell, crop, foo, foo_day, ndvid_coeff, debug_flag)
+        obs_kcb_daily.kcb_daily(data, et_cell, crop, foo, foo_day, debug_flag)
 
         # Calculate Kcb, Ke, ETc
         compute_field_et.compute_field_et(data, et_cell, crop, foo, foo_day,
@@ -233,18 +238,8 @@ def field_day_loop(data, et_cell, ndvid_coeff, debug_flag=False):
                 #     'DPerc {:.6f}  NIWR {:.6f}').format(
                 #     func_str, foo.irr_sim, foo.sro, foo.dperc, foo.niwr))
 
-        # Check that season started
-        if foo_day.month == 12 and foo_day.day == 31:
-            season_count = foo.crop_df.loc[
-                           str(foo_day.year):str(foo_day.year), 'season'].sum()
-            if season_count == 0:
-                logging.warning(
-                    '  Crop {} - {} growing season never started'.format(
-                        crop.class_number, foo_day.year))
-            elif season_count == 1:
-                logging.warning(
-                    '  Crop {} - {} growing season active for 1 day'.format(
-                        crop.class_number, foo_day.year))
+    if return_df:
+        return foo.crop_df
 
     # Write output files
     if (data.cet_out['daily_output_flag'] or
@@ -314,6 +309,7 @@ def write_crop_output(data, et_cell, crop, foo):
                      'Kc',
                      'Kcb',
                      'NDVI_IRR',
+                     'ETF_IRR'
                      'PPT',
                      'Irrigation',
                      'Runoff',

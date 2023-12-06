@@ -25,7 +25,7 @@ def run_fields(ini_path, debug_flag=False):
         cell_count += 1
 
         cell.set_input_timeseries(cell_count, data, cells)
-        obs_field_cycle.field_day_loop(data, cell, ndvid_coeff=1.25, debug_flag=debug_flag)
+        obs_field_cycle.field_day_loop(data, cell, debug_flag=debug_flag)
 
 
 if __name__ == '__main__':

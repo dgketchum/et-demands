@@ -19,10 +19,10 @@ import pandas as pd
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__),
                                              '../lib')))
-import util
+from fieldET import util
 
-from et_cell import ETCellData, ETCell
-from obs_remote_sensing import RemoteSensingData
+from fieldET.et_cell import ETCellData, ETCell
+from fieldET.obs_remote_sensing import RemoteSensingData
 
 mpdToMps = 3.2808399 * 5280 / 86400
 
@@ -290,8 +290,8 @@ class ObsETCell(ETCell):
 
         """
 
-        self.set_refet_data(data)
-        self.set_weather_data(cell_count, data, cells)
+        self.set_refet_data(data, cells)
+        self.set_weather_data(data, cells)
         self.process_climate(data)
         self.set_field_remote_sensing_data(data)
         return True
@@ -303,11 +303,10 @@ class ObsETCell(ETCell):
         rs_obj = RemoteSensingData(**dct)
         _csv = os.path.join(data.crop_coefs_path, '{}_daily.csv'.format(self.cell_id))
         coeff_df = pd.read_csv(_csv, index_col='date', infer_datetime_format=True, parse_dates=True)
-        rs_obj.data = coeff_df[['eta_r_mm', 'eta_o_mm',
-                                'NDVI_IRR', 'NDVI_NO_IRR']]
+        rs_obj.data = coeff_df[['eta_r_mm', 'eta_o_mm', 'NDVI_NO_IRR', 'NDVI_IRR', 'ETF_NO_IRR', 'ETF_IRR']]
         self.crop_coeffs = {1: rs_obj}
 
-    def set_refet_data(self, data):
+    def set_refet_data(self, data, cells):
         """Read daily crop coefficient data from NDVI time series"""
 
         _csv = os.path.join(data.crop_coefs_path, '{}_daily.csv'.format(self.cell_id))

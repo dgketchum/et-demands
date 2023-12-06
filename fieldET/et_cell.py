@@ -20,8 +20,7 @@ import shapefile
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__),
                                              '../../lib')))
-import crop_et_data
-import util
+from fieldET import util
 
 mpdToMps = 3.2808399 * 5280 / 86400
 
@@ -725,7 +724,7 @@ class ETCell():
             return False
         if data.refet_ratios_path:
             self.set_refet_ratio_data(data)
-        if not self.set_weather_data(cell_count, data, cells):
+        if not self.set_weather_data(data, cells):
             return False
         if data.phenology_option > 0:
             if not self.set_historical_temps(cell_count, data, cells):
@@ -963,7 +962,7 @@ class ETCell():
         del self.refet_df[data.et_ratios_id_field]
         return True
 
-    def set_weather_data(self, cell_count, data, cells):
+    def set_weather_data(self, data, cells):
         """Read meteorological data for single station and fill missing
             values
 

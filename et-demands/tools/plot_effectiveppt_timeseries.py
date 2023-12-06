@@ -9,7 +9,7 @@ import sys
 import util
 
 
-def main(ini_path, time_agg, year_filter=''):
+def main(ini_path, time_agg, year_filter='', obs_flag=False):
 
     """Read monthly summary files and create monthly, calendar year, and water year (oct-sep)
     summary files for each crop cell combination
@@ -40,16 +40,21 @@ def main(ini_path, time_agg, year_filter=''):
 
     if time_agg == 'annual':
         print('\nSummarizing Annual Effective Precipitation')
-        ws = os.path.join(project_ws, r'annual_stats')
+
+        if obs_flag:
+            ws = os.path.join(project_ws, r'obs_annual_stats')
+        else:
+            ws = os.path.join(project_ws, r'annual_stats')
+
         date_var = 'Year'
     elif time_agg == 'wateryear':
         print('\nSummarizing Water Year Effective Precipitation')
-        ws = os.path.join(project_ws, r'monthly_stats')
+        ws = os.path.join(project_ws, r'obs_monthly_stats')
         date_var = 'WY'
-    # else:
-    #     print('\nSummarizing Monthly Effective Precipitation')
-    #     ws = os.path.join(project_ws, r'monthly_stats')
-    #     date_var = 'Date'
+    else:
+        print('\nSummarizing Monthly Effective Precipitation')
+        ws = os.path.join(project_ws, r'monthly_stats')
+        date_var = 'Date'
 
     # Identify unique crops and station_ids in monthly_stats folder
     # Regular expressions
@@ -101,8 +106,6 @@ def main(ini_path, time_agg, year_filter=''):
         except:
             pass
 
-
-
     print('\n Reading Data and Creating Effective PPT Plots')
     for station in unique_stations:
         logging.info('\n Processing Station: {}'.format(station))
@@ -138,7 +141,6 @@ def main(ini_path, time_agg, year_filter=''):
                 # groupby WY (sum); select PPT variables
                 df = df[['PPT', 'DPerc', 'P_rz', 'P_eft']].groupby(df.WY).sum()
 
-
                 # calculate WY fractions
                 df['P_rz_fraction'] = df.P_rz / df.PPT
                 df['P_eft_fraction'] = df.P_eft / df.PPT
@@ -157,7 +159,6 @@ def main(ini_path, time_agg, year_filter=''):
             fig, ax1 = plt.subplots(1, 1, figsize=(16, 5))
             ax2 = ax1.twinx() # Create another axes that shares the same x-axis as ax.
 
-
             ax1.plot(df.index, df.P_rz_fraction, color='k', linestyle='-', lw=1.5, label='P_rz')
             ax1.plot(df.index, df.P_eft_fraction, color='mediumblue', lw=1.5, linestyle='-',
                      label='P_eft')
@@ -167,11 +168,12 @@ def main(ini_path, time_agg, year_filter=''):
             ax2.bar(df.index, df.DPerc, color='darkgrey', label='DPerc')
             ax2.set_ylabel('Annual Precipitation/Deep Percolation', size=12)
 
-            ax1.axes.set_title('Cell: {}, Crop: {:02d}'.format(station, crop, time_agg), fontsize=12, color="black", alpha=1)
+            ax1.axes.set_title('Cell: {}, Crop: {:02d}'.format(station, crop, time_agg),
+                               fontsize=12, color="black", alpha=1)
 
             fig.legend()
-            ax1.set_zorder(1)  # default zorder is 0 for ax1 and ax2
-            ax1.patch.set_visible(False)  # prevents ax1 from hiding ax2
+            ax1.set_zorder(1)
+            ax1.patch.set_visible(False)
 
             output_ws = os.path.join(project_ws, 'effective_ppt_plots', '{}'.format(time_agg))
             if not os.path.exists(output_ws):
@@ -183,8 +185,6 @@ def main(ini_path, time_agg, year_filter=''):
             fig.savefig(output_path, dpi=300)
             plt.close()
 
-
-        
 
 def arg_parse():
     """"""
@@ -208,6 +208,15 @@ def arg_parse():
 
 
 if __name__ == '__main__':
-    args = arg_parse()
 
-    main(ini_path=args.ini, time_agg=args.time_agg, year_filter=args.year)
+    obs_flag = True
+    # obs_flag = False
+
+    if obs_flag:
+        ini = '/home/dgketchum/PycharmProjects/et-demands/examples/tongue/tongue_example_cet_obs.ini'
+    else:
+        ini = '/home/dgketchum/PycharmProjects/et-demands/examples/tongue/tongue_example_cet.ini'
+
+    logging.basicConfig(level=logging.ERROR)
+    overwrite = True
+    main(ini_path=ini, year_filter=None, time_agg='annual', obs_flag=obs_flag)
