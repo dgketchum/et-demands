@@ -148,7 +148,7 @@ class InitializeObsCropCycle:
         # self.kt_prop = 1
         # self.ze = 0.
 
-    def crop_load(self, data, et_cell, crop, ndvi_coeff):
+    def crop_load(self, data, et_cell, crop):
         """Assign characteristics for crop from crop Arrays
         Parameters
         ---------

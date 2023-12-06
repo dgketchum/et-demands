@@ -12,7 +12,6 @@ import multiprocessing as mp
 import os
 import numpy as np
 import pandas as pd
-import sys
 
 import calculate_height
 import compute_crop_et

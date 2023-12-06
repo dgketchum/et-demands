@@ -52,7 +52,7 @@ if __name__ == '__main__':
 
     irr_ = os.path.join(d, 'examples', 'tongue', 'landsat', 'tongue_sample_irr.csv')
     fields_shp = os.path.join(d, 'examples', 'tongue', 'gis', 'tongue_fields_sample.shp')
-    dst_dir_ = os.path.join(d, 'examples', 'tongue', 'landsat', 'ndvi', 'field_daily')
+    dst_dir_ = os.path.join(d, 'examples', 'tongue', 'landsat', 'field_daily')
 
     estimate_slope_intercept(dst_dir_, irr_, partition='irr')
 # ========================= EOF ====================================================================
