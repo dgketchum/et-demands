@@ -16,7 +16,7 @@ import sys
 import copy
 import numpy as np
 import pandas as pd
-import shapefile
+# import shapefile
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__),
                                              '../../lib')))
@@ -376,173 +376,173 @@ class ETCellData():
             cell = self.et_cells_dict[cell_id]
             cell.crop_coeffs = copy.deepcopy(crop_coeffs)
 
-    def set_spatial_crop_params(self, calibration_ws):
-        """set spatial crop parameters from spatial calibration
-
-        Parameters
-        ---------
-        crop_coeffs :
-
-
-        Returns
-        -------
-        None
-
-        Notes
-        -----
-
-        """
-
-        logging.info('Setting spatially varying crop parameters')
-        cell_id_field = 'CELL_ID'
-        crop_dbf_re = re.compile('crop_\d{2}_\w+.dbf$', re.I)
-
-        # Get list of crop parameter shapefiles DBFs
-
-        crop_dbf_dict = dict([
-            (int(item.split('_')[1]), os.path.join(calibration_ws, item))
-            for item in os.listdir(calibration_ws)
-            if crop_dbf_re.match(item)])
-
-        # Check to see if crop_dbf_dict is empty
-        if not crop_dbf_dict:
-            logging.error('\nSpatially Varying Calibration Files Do Not Exist.'
-                          ' Run build_spatial_crop_params_arcpy.py')
-            sys.exit()
-            # return False
-
-        # Filter the file list based on the "active" crops
-        for crop_num in list(crop_dbf_dict):
-            if crop_num not in self.crop_num_list:
-                try:
-                    del crop_dbf_dict[crop_num]
-                except:
-                    pass
-
-        # Check to see that all "active" crops have shapefiles in spatially
-        #  varying calibration folder
-        missing_set = set(self.crop_num_list) - set(crop_dbf_dict.keys())
-        # if self.crop_num_list not in crop_dbf_dict.keys():
-        # ###WHY DOESN't THIS WORK (Data Type Issue???)
-        if len(missing_set) > 0:
-            logging.error(('\nMissing Crop Shapefiles In Calibration Folder. '
-                           'Re-Run build_spatial_crop_params_arcpy.py'))
-            missing_set_str = ', '.join(str(s) for s in missing_set)
-            logging.error(('Missing Crops: ' + missing_set_str))
-            sys.exit()
-            # return False
-
-        # DEADBEEF - This really shouldn't be hard coded here
-        # Dictionary to convert shapefile field names to crop parameters
-        param_field_dict = {
-            'Name': 'name',
-            'ClassNum': 'class_number',
-            'IsAnnual': 'is_annual',
-            'IrrigFlag': 'irrigation_flag',
-            'IrrigDays': 'days_after_planting_irrigation',
-            'Crop_FW': 'crop_fw',
-            'WinterCov': 'winter_surface_cover_class',
-            'CropKcMax': 'kc_max',
-            'MAD_Init': 'mad_initial',
-            'MAD_Mid': 'mad_midseason',
-            'RootDepIni': 'rooting_depth_initial',
-            'RootDepMax': 'rooting_depth_max',
-            'EndRootGrw': 'end_of_root_growth_fraction_time',
-            'HeightInit': 'height_initial',
-            'HeightMax': 'height_max',
-            'CurveNum': 'curve_number',
-            'CurveName': 'curve_name',
-            'CurveType': 'curve_type',
-            'PL_GU_Flag': 'flag_for_means_to_estimate_pl_or_gu',
-            'T30_CGDD': 't30_for_pl_or_gu_or_cgdd',
-            'PL_GU_Date': 'date_of_pl_or_gu',
-            'CGDD_Tbase': 'tbase',
-            'CGDD_EFC': 'cgdd_for_efc',
-            'CGDD_Term': 'cgdd_for_termination',
-            'Time_EFC': 'time_for_efc',
-            'Time_Harv': 'time_for_harvest',
-            'KillFrostC': 'killing_frost_temperature',
-            'InvokeStrs': 'invoke_stress',
-            'CN_Coarse': 'cn_coarse_soil',
-            'CN_Medium': 'cn_medium_soil',
-            'CN_Fine': 'cn_fine_soil'}
-
-        # Cuttings values can also be updated spatially
-        cutting_field_dict = {
-            'Beef_Cut': 'beef_cuttings',
-            'Dairy_Cur': 'dairy_cuttings'}
-
-        # Crop parameter shapefiles are by crop,
-        #   but parameters need to be separated first by ETCell
-        # Process each crop parameter shapefile
-
-        for crop_num, crop_dbf in sorted(crop_dbf_dict.items()):
-            logging.debug('    {0:2d} {1}'.format(crop_num, crop_dbf))
-
-            # Process using dbfread
-            # crop_f = DBF(crop_dbf)
-            # for record in crop_f:
-            #     _id = record[cell_id_field]
-            #      field_name, row_value in dict(record).items():
-
-            # Process using shapefile/pyshp
-
-            crop_f = shapefile.Reader(crop_dbf)
-            crop_fields = [f[0] for f in crop_f.fields if f[0] !=
-                           'DeletionFlag']
-
-            for record in crop_f.iterRecords():
-                # convert cell_id from .shp to str to match etcells type
-                cell_id = str(record[crop_fields.index(cell_id_field)])
-
-                # Skip cells
-                if cell_id not in self.et_cells_dict.keys():
-                    logging.info('CellID: {} not in et cell list. Not reading spatial'
-                                 ' crop parameters for this cell.'.format(
-                        cell_id))
-                    continue
-                for field_name, row_value in zip(crop_fields, record):
-                    # DEADBEEF - I really want to skip non-crop parameter fields
-                    # but also tell the user if a crop param field is missing
-
-                    try:
-                        param_name = param_field_dict[field_name]
-                    except:
-                        param_name = None
-                    try:
-                        cutting_name = cutting_field_dict[field_name]
-                    except:
-                        cutting_name = None
-                    if param_name is not None:
-                        try:
-                            setattr(
-                                self.et_cells_dict[cell_id].crop_params[
-                                    crop_num], param_name, float(row_value))
-                            # print(self.et_cells_dict[cell_id].crop_params[
-                            #         crop_num], param_name, float(row_value))
-
-                        except:
-                            logging.warning(
-                                ('  The spatial crop parameter was not '
-                                 'updated\n' + '    cell_id:    {0}\n'
-                                               '    crop_num:   {1}\n' +
-                                 '    field_name: {2}\n    parameter:  {3}').
-                                format(cell_id, crop_num, field_name,
-                                       param_name))
-                    elif cutting_name is not None:
-                        try:
-                            setattr(
-                                self.et_cells_dict[cell_id],
-                                cutting_name, float(row_value))
-                        except:
-                            logging.warning(
-                                ('  The spatial cutting parameter was not '
-                                 'updated\n' +
-                                 '    cell_id:    {0}\n    crop_num:   {1}\n' +
-                                 '    field_name: {2}\n    parameter:  {3}').
-                                format(cell_id, crop_num, field_name,
-                                       cutting_name))
-        return True
+    # def set_spatial_crop_params(self, calibration_ws):
+    #     """set spatial crop parameters from spatial calibration
+    #
+    #     Parameters
+    #     ---------
+    #     crop_coeffs :
+    #
+    #
+    #     Returns
+    #     -------
+    #     None
+    #
+    #     Notes
+    #     -----
+    #
+    #     """
+    #
+    #     logging.info('Setting spatially varying crop parameters')
+    #     cell_id_field = 'CELL_ID'
+    #     crop_dbf_re = re.compile('crop_\d{2}_\w+.dbf$', re.I)
+    #
+    #     # Get list of crop parameter shapefiles DBFs
+    #
+    #     crop_dbf_dict = dict([
+    #         (int(item.split('_')[1]), os.path.join(calibration_ws, item))
+    #         for item in os.listdir(calibration_ws)
+    #         if crop_dbf_re.match(item)])
+    #
+    #     # Check to see if crop_dbf_dict is empty
+    #     if not crop_dbf_dict:
+    #         logging.error('\nSpatially Varying Calibration Files Do Not Exist.'
+    #                       ' Run build_spatial_crop_params_arcpy.py')
+    #         sys.exit()
+    #         # return False
+    #
+    #     # Filter the file list based on the "active" crops
+    #     for crop_num in list(crop_dbf_dict):
+    #         if crop_num not in self.crop_num_list:
+    #             try:
+    #                 del crop_dbf_dict[crop_num]
+    #             except:
+    #                 pass
+    #
+    #     # Check to see that all "active" crops have shapefiles in spatially
+    #     #  varying calibration folder
+    #     missing_set = set(self.crop_num_list) - set(crop_dbf_dict.keys())
+    #     # if self.crop_num_list not in crop_dbf_dict.keys():
+    #     # ###WHY DOESN't THIS WORK (Data Type Issue???)
+    #     if len(missing_set) > 0:
+    #         logging.error(('\nMissing Crop Shapefiles In Calibration Folder. '
+    #                        'Re-Run build_spatial_crop_params_arcpy.py'))
+    #         missing_set_str = ', '.join(str(s) for s in missing_set)
+    #         logging.error(('Missing Crops: ' + missing_set_str))
+    #         sys.exit()
+    #         # return False
+    #
+    #     # DEADBEEF - This really shouldn't be hard coded here
+    #     # Dictionary to convert shapefile field names to crop parameters
+    #     param_field_dict = {
+    #         'Name': 'name',
+    #         'ClassNum': 'class_number',
+    #         'IsAnnual': 'is_annual',
+    #         'IrrigFlag': 'irrigation_flag',
+    #         'IrrigDays': 'days_after_planting_irrigation',
+    #         'Crop_FW': 'crop_fw',
+    #         'WinterCov': 'winter_surface_cover_class',
+    #         'CropKcMax': 'kc_max',
+    #         'MAD_Init': 'mad_initial',
+    #         'MAD_Mid': 'mad_midseason',
+    #         'RootDepIni': 'rooting_depth_initial',
+    #         'RootDepMax': 'rooting_depth_max',
+    #         'EndRootGrw': 'end_of_root_growth_fraction_time',
+    #         'HeightInit': 'height_initial',
+    #         'HeightMax': 'height_max',
+    #         'CurveNum': 'curve_number',
+    #         'CurveName': 'curve_name',
+    #         'CurveType': 'curve_type',
+    #         'PL_GU_Flag': 'flag_for_means_to_estimate_pl_or_gu',
+    #         'T30_CGDD': 't30_for_pl_or_gu_or_cgdd',
+    #         'PL_GU_Date': 'date_of_pl_or_gu',
+    #         'CGDD_Tbase': 'tbase',
+    #         'CGDD_EFC': 'cgdd_for_efc',
+    #         'CGDD_Term': 'cgdd_for_termination',
+    #         'Time_EFC': 'time_for_efc',
+    #         'Time_Harv': 'time_for_harvest',
+    #         'KillFrostC': 'killing_frost_temperature',
+    #         'InvokeStrs': 'invoke_stress',
+    #         'CN_Coarse': 'cn_coarse_soil',
+    #         'CN_Medium': 'cn_medium_soil',
+    #         'CN_Fine': 'cn_fine_soil'}
+    #
+    #     # Cuttings values can also be updated spatially
+    #     cutting_field_dict = {
+    #         'Beef_Cut': 'beef_cuttings',
+    #         'Dairy_Cur': 'dairy_cuttings'}
+    #
+    #     # Crop parameter shapefiles are by crop,
+    #     #   but parameters need to be separated first by ETCell
+    #     # Process each crop parameter shapefile
+    #
+    #     for crop_num, crop_dbf in sorted(crop_dbf_dict.items()):
+    #         logging.debug('    {0:2d} {1}'.format(crop_num, crop_dbf))
+    #
+    #         # Process using dbfread
+    #         # crop_f = DBF(crop_dbf)
+    #         # for record in crop_f:
+    #         #     _id = record[cell_id_field]
+    #         #      field_name, row_value in dict(record).items():
+    #
+    #         # Process using shapefile/pyshp
+    #
+    #         crop_f = shapefile.Reader(crop_dbf)
+    #         crop_fields = [f[0] for f in crop_f.fields if f[0] !=
+    #                        'DeletionFlag']
+    #
+    #         for record in crop_f.iterRecords():
+    #             # convert cell_id from .shp to str to match etcells type
+    #             cell_id = str(record[crop_fields.index(cell_id_field)])
+    #
+    #             # Skip cells
+    #             if cell_id not in self.et_cells_dict.keys():
+    #                 logging.info('CellID: {} not in et cell list. Not reading spatial'
+    #                              ' crop parameters for this cell.'.format(
+    #                     cell_id))
+    #                 continue
+    #             for field_name, row_value in zip(crop_fields, record):
+    #                 # DEADBEEF - I really want to skip non-crop parameter fields
+    #                 # but also tell the user if a crop param field is missing
+    #
+    #                 try:
+    #                     param_name = param_field_dict[field_name]
+    #                 except:
+    #                     param_name = None
+    #                 try:
+    #                     cutting_name = cutting_field_dict[field_name]
+    #                 except:
+    #                     cutting_name = None
+    #                 if param_name is not None:
+    #                     try:
+    #                         setattr(
+    #                             self.et_cells_dict[cell_id].crop_params[
+    #                                 crop_num], param_name, float(row_value))
+    #                         # print(self.et_cells_dict[cell_id].crop_params[
+    #                         #         crop_num], param_name, float(row_value))
+    #
+    #                     except:
+    #                         logging.warning(
+    #                             ('  The spatial crop parameter was not '
+    #                              'updated\n' + '    cell_id:    {0}\n'
+    #                                            '    crop_num:   {1}\n' +
+    #                              '    field_name: {2}\n    parameter:  {3}').
+    #                             format(cell_id, crop_num, field_name,
+    #                                    param_name))
+    #                 elif cutting_name is not None:
+    #                     try:
+    #                         setattr(
+    #                             self.et_cells_dict[cell_id],
+    #                             cutting_name, float(row_value))
+    #                     except:
+    #                         logging.warning(
+    #                             ('  The spatial cutting parameter was not '
+    #                              'updated\n' +
+    #                              '    cell_id:    {0}\n    crop_num:   {1}\n' +
+    #                              '    field_name: {2}\n    parameter:  {3}').
+    #                             format(cell_id, crop_num, field_name,
+    #                                    cutting_name))
+    #     return True
 
 
 class ETCell():
