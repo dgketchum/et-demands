@@ -65,6 +65,8 @@ class ObsFieldETData(CropETData):
         crop_et_sec = 'CROP_ET'  # required
         weather_sec = 'WEATHER'  # required
         refet_sec = 'REFET'  # required
+        calib_sec = 'CALIBRATION'  # required
+
         # Constant phenology section
         hist_temps_sec = 'HIST'  # optional
 
@@ -512,6 +514,17 @@ class ObsFieldETData(CropETData):
                 self.cet_out['annual_float_format'] = None
         except:
             self.cet_out['annual_float_format'] = None
+
+        """
+        INI [CALIBRATION] Section
+
+        """
+
+        self.calibration = bool(config.get(calib_sec, 'calibrate_flag'))
+        if self.calibration:
+            self.calibration_folder = config.get(calib_sec, 'calibration_folder')
+            self.tunable_file_fmt = config.get(calib_sec, 'tunable_file_fmt')
+            self.calibrated_parameters = config.get(calib_sec, 'calibrated_parameters').split(',')
 
         """
         INI [REFET] Section

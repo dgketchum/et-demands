@@ -34,7 +34,7 @@ class DayData:
         self.etref_array = np.zeros(30)
 
 
-def field_day_loop(data, et_cell, debug_flag=False, return_df=False, **kwargs):
+def field_day_loop(data, et_cell, debug_flag=False, return_df=False):
     """Compute crop et for each daily timestep at a field
 
     Parameters
@@ -83,8 +83,13 @@ def field_day_loop(data, et_cell, debug_flag=False, return_df=False, **kwargs):
     foo.crop_load(data, et_cell, crop)
 
     # apply calibration parameter updates here
-    if kwargs:
-        for k, v in kwargs.items():
+    if data.calibration:
+        # this is just a kwargs dict of {param: [lower_bound, upper_bound]} in PyCUP
+        # but needs a filename for PEST++
+        for k in data.calibrated_parameters:
+            f = os.path.join(data.calibration_folder, data.tunable_file_fmt.format(k))
+            # TODO: change this to vectorize parameters (i.e., put in 2D ndarray, remove '.item' call)
+            v = pd.read_csv(f, index_col=None, header=None, dtype=float).values.item()
             foo.__setattr__(k, v)
 
     # GetCO2 correction factors for each crop
@@ -103,11 +108,10 @@ def field_day_loop(data, et_cell, debug_flag=False, return_df=False, **kwargs):
 
     for step_dt, step_doy in foo.crop_df[['doy']].iterrows():
 
-        # if not 2008 < step_dt.year < 2012:
-        #     continue
-        # TODO: complete time series with LE07, else NDVI empty in 2012
-        if step_dt.year == 2012:
+        if not 2008 < step_dt.year < 2012:
             continue
+        # if step_dt.year != 2012:
+        #     continue
 
         if debug_flag:
             logging.debug(
@@ -155,45 +159,14 @@ def field_day_loop(data, et_cell, debug_flag=False, return_df=False, **kwargs):
         foo_day.rh_min = float(et_cell.climate_df.at[step_dt, 'rh_min'])
         foo_day.etref = float(et_cell.climate_df.at[step_dt, 'etref'])
         foo_day.snow_depth = float(et_cell.climate_df.at[step_dt, 'snow_depth'])
-        if data.phenology_option == 0:
-            foo_day.tmean = float(et_cell.climate_df.at[step_dt, 'tmean'])
-            foo_day.tmin = float(et_cell.climate_df.at[step_dt, 'tmin'])
-            foo_day.tmax = float(et_cell.climate_df.at[step_dt, 'tmax'])
-            foo_day.t30 = float(et_cell.climate_df.at[step_dt, 't30'])
-        elif data.phenology_option == 1:  # annual crops only
-            if crop.is_annual:
-                foo_day.tmean = float(et_cell.climate_df.at[step_dt, 'meant'])
-                foo_day.tmin = float(et_cell.climate_df.at[step_dt, 'mint'])
-                foo_day.tmax = float(et_cell.climate_df.at[step_dt, 'maxt'])
-                foo_day.t30 = float(et_cell.climate_df.at[step_dt, '30t'])
-            else:
-                foo_day.tmean = float(et_cell.climate_df.at[step_dt, 'tmean'])
-                foo_day.tmin = float(et_cell.climate_df.at[step_dt, 'tmin'])
-                foo_day.tmax = float(et_cell.climate_df.at[step_dt, 'tmax'])
-                foo_day.t30 = float(et_cell.climate_df.at[step_dt, 't30'])
-        elif data.phenology_option == 2:  # perennial crops only
-            if not crop.is_annual:
-                foo_day.tmean = float(et_cell.climate_df.at[step_dt, 'meant'])
-                foo_day.tmin = float(et_cell.climate_df.at[step_dt, 'mint'])
-                foo_day.tmax = float(et_cell.climate_df.at[step_dt, 'maxt'])
-                foo_day.t30 = float(et_cell.climate_df.at[step_dt, '30t'])
-            else:
-                foo_day.tmean = float(et_cell.climate_df.at[step_dt, 'tmean'])
-                foo_day.tmin = float(et_cell.climate_df.at[step_dt, 'tmin'])
-                foo_day.tmax = float(et_cell.climate_df.at[step_dt, 'tmax'])
-                foo_day.t30 = float(et_cell.climate_df.at[step_dt, 't30'])
-        else:  # both annual and perennial
-            foo_day.tmean = float(et_cell.climate_df.at[step_dt, 'meant'])
-            foo_day.tmin = float(et_cell.climate_df.at[step_dt, 'mint'])
-            foo_day.tmax = float(et_cell.climate_df.at[step_dt, 'maxt'])
-            foo_day.t30 = float(et_cell.climate_df.at[step_dt, '30t'])
+        foo_day.tmean = float(et_cell.climate_df.at[step_dt, 'tmean'])
+        foo_day.tmin = float(et_cell.climate_df.at[step_dt, 'tmin'])
+        foo_day.tmax = float(et_cell.climate_df.at[step_dt, 'tmax'])
+        foo_day.t30 = float(et_cell.climate_df.at[step_dt, 't30'])
 
         # Get CO2 correction factor for each day
         if data.co2_flag:
             foo_day.co2 = float(foo.co2.at[step_dt])
-
-        # Compute crop growing degree days
-        # compute_crop_gdd.compute_crop_gdd(crop, foo, foo_day)
 
         # Calculate height of vegetation.
         # Moved up to this point 12/26/07 for use in adj. Kcb and kc_max
@@ -224,19 +197,7 @@ def field_day_loop(data, et_cell, debug_flag=False, return_df=False, **kwargs):
 
         # Write final output file variables to DEBUG file
         if foo_day.doy == 270:
-
-            if debug_flag:
-                print(foo_day.year)
-                # print((
-                #     '{}: ETref  {:.6f}  Precip {:.6f}  T30 {:.6f}').format(
-                #     func_str, foo_day.etref, foo_day.precip, foo_day.t30))
-                print((
-                    '{}: ETact  {:.6f}  ETpot {:.6f}   ETbas {:.6f}').format(
-                    func_str, foo.etc_act, foo.etc_pot, foo.etc_bas))
-                # print((
-                #     '{}: Irrig  {:.6f}  Runoff {:.6f}  ' +
-                #     'DPerc {:.6f}  NIWR {:.6f}').format(
-                #     func_str, foo.irr_sim, foo.sro, foo.dperc, foo.niwr))
+            pass
 
     if return_df:
         return foo.crop_df
