@@ -55,7 +55,7 @@ def prepare_fields_properties(met_fields, soils, fields_out):
 
 
 def join_gridmet_remote_sensing_daily(fields, gridmet_dir, ndvi_masked, ndvi_unmasked, etf_masked, etf_unmasked,
-                                      et_data, dst_dir):
+                                      et_data, dst_dir, overwrite=False, start_date=None, end_date=None):
     ndvi_masked = pd.read_csv(ndvi_masked, index_col=0, infer_datetime_format=True, parse_dates=True)
     ndvi_unmasked = pd.read_csv(ndvi_unmasked, index_col=0, infer_datetime_format=True, parse_dates=True)
     etf_masked = pd.read_csv(etf_masked, index_col=0, infer_datetime_format=True, parse_dates=True)
@@ -75,6 +75,11 @@ def join_gridmet_remote_sensing_daily(fields, gridmet_dir, ndvi_masked, ndvi_unm
     et_index = [pd.to_datetime('{}-{}-01'.format(y, m)) for y, m in et_months]
 
     for f, row in fields.iterrows():
+
+        _file = os.path.join(dst_dir, '{}_daily.csv'.format(f))
+        if os.path.exists(_file) and not overwrite:
+            continue
+
         gridmet_file = os.path.join(gridmet_dir, 'gridmet_historical_{}.csv'.format(int(row['GFID'])))
         gridmet = pd.read_csv(gridmet_file, index_col='date',
                               infer_datetime_format=True,
@@ -106,7 +111,11 @@ def join_gridmet_remote_sensing_daily(fields, gridmet_dir, ndvi_masked, ndvi_unm
         gridmet.loc[etf_masked.index, 'ETF_IRR'] = etf_masked[str(f)]
         gridmet.loc[etf_unmasked.index, 'ETF_NO_IRR'] = etf_unmasked[str(f)]
 
-        _file = os.path.join(dst_dir, '{}_daily.csv'.format(f))
+        if start_date:
+            gridmet = gridmet.loc[start_date:]
+        if end_date:
+            gridmet = gridmet.loc[:end_date]
+
         gridmet.to_csv(_file)
         print(_file)
 
@@ -159,7 +168,8 @@ if __name__ == '__main__':
     et_data_ = '/media/research/IrrigationGIS/Montana/tongue/all_data.csv'
     dst_dir_ = os.path.join(d, 'examples', 'tongue', 'landsat', 'field_daily')
     join_gridmet_remote_sensing_daily(fields_gridmet, gridmet_, ndvi_masked_, ndvi_inv_mask_, etf_masked_,
-                                      etf_inv_mask_, et_data_, dst_dir_)
+                                      etf_inv_mask_, et_data_, dst_dir_, overwrite=False, start_date='2009-01-01',
+                                      end_date='2011-12-31')
 
     fields_props = os.path.join(d, 'examples', 'tongue', 'static', 'obs', 'tongue_fields_properties.shp')
     soils_ = os.path.join(d, 'examples', 'tongue', 'gis', 'soils_aea')

@@ -1,4 +1,5 @@
 import logging
+import time
 
 import obs_field_cycle
 import obs_crop_et_data
@@ -25,7 +26,10 @@ def run_fields(ini_path, debug_flag=False):
         cell_count += 1
 
         cell.set_input_timeseries(cell_count, data, cells)
+        start_time = time.time()
         obs_field_cycle.field_day_loop(data, cell, debug_flag=debug_flag)
+        end_time = time.time()
+        print('Execution time: {:.2f}'.format(end_time - start_time))
 
 
 if __name__ == '__main__':

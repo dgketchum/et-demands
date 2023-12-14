@@ -9,8 +9,10 @@ from fieldET import obs_crop_et_data
 from fieldET import obs_et_cell
 
 dct = {'aw': [100.0, 1000.0]}
-       # 'rew': [2.0, 12.0],
-       # 'tew': [6.0, 29.0], }
+
+
+# 'rew': [2.0, 12.0],
+# 'tew': [6.0, 29.0], }
 
 
 def intitialize_field(ini_path, fid, field_type='irrigated'):
@@ -31,7 +33,9 @@ def intitialize_field(ini_path, fid, field_type='irrigated'):
 
 
 def calibrate_unirrigated(beta, fid, ini, obs):
+    # TODO: these need to be separate files for pest
     coeffs = {p: b for p, b in zip(dct.keys(), beta)}
+
     meta, field = intitialize_field(ini, fid, field_type='unirrigated')
     result = obs_field_cycle.field_day_loop(meta, field, return_df=True, **coeffs)
     predicted = result[['et_act']].copy()
@@ -67,6 +71,6 @@ if __name__ == '__main__':
     ub = np.array([i[2] for i in params])
 
     hs, hr, hf = cp.GLUE.run(500, 1, lb=lb, ub=ub, fun=calibrate_unirrigated,
-                               args=(field_id, ini, data))
+                             args=(field_id, ini, data))
     a = 1
 # ========================= EOF ====================================================================
