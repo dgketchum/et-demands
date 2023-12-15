@@ -84,13 +84,15 @@ def field_day_loop(data, et_cell, debug_flag=False, return_df=False):
 
     # apply calibration parameter updates here
     if data.calibration:
-        # this is just a kwargs dict of {param: [lower_bound, upper_bound]} in PyCUP
-        # but needs a filename for PEST++
+        # PEST++ hacking
+
         for k in data.calibrated_parameters:
-            f = os.path.join(data.calibration_folder, data.tunable_file_fmt.format(k))
+            fname = data.calibration_mult_files[data.calibrated_parameters.index(k)]
+            f = os.path.join(data.calibration_folder,fname)
             # TODO: change this to vectorize parameters (i.e., put in 2D ndarray, remove '.item' call)
             v = pd.read_csv(f, index_col=None, header=None, dtype=float).values.item()
             foo.__setattr__(k, v)
+            print(k, v)
 
     # GetCO2 correction factors for each crop
     if data.co2_flag:
