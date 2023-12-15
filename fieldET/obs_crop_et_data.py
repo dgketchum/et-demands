@@ -525,6 +525,8 @@ class ObsFieldETData(CropETData):
             self.calibration_folder = config.get(calib_sec, 'calibration_folder')
             self.tunable_file_fmt = config.get(calib_sec, 'tunable_file_fmt')
             self.calibrated_parameters = config.get(calib_sec, 'calibrated_parameters').split(',')
+            self.calibration_mult_files = config.get(calib_sec, 'calibration_mult_files').split(',')
+
 
         """
         INI [REFET] Section
