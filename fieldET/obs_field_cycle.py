@@ -88,11 +88,15 @@ def field_day_loop(data, et_cell, debug_flag=False, return_df=False):
 
         for k in data.calibrated_parameters:
             fname = data.calibration_mult_files[data.calibrated_parameters.index(k)]
-            f = os.path.join(data.calibration_folder,fname)
+            f = os.path.join(data.calibration_folder, fname)
             # TODO: change this to vectorize parameters (i.e., put in 2D ndarray, remove '.item' call)
             v = pd.read_csv(f, index_col=None, header=None, dtype=float).values.item()
             foo.__setattr__(k, v)
-            print(k, v)
+            print('{}: {:.1f}'.format(k, v))
+            if k == 'aw':
+                foo.__setattr__('depl_root', 0.0)
+            if k == 'rew':
+                foo.__setattr__('depl_surface', 0.0)
 
     # GetCO2 correction factors for each crop
     if data.co2_flag:
@@ -110,7 +114,7 @@ def field_day_loop(data, et_cell, debug_flag=False, return_df=False):
 
     for step_dt, step_doy in foo.crop_df[['doy']].iterrows():
 
-        if not 2008 < step_dt.year < 2012:
+        if not 2000 <= step_dt.year <= 2006:
             continue
         # if step_dt.year != 2012:
         #     continue
@@ -150,7 +154,7 @@ def field_day_loop(data, et_cell, debug_flag=False, return_df=False):
         # Track variables for each day
         # For now, cast all values to native Python types
         foo_day.sdays += 1
-        foo_day.doy = int(step_doy)
+        foo_day.doy = int(step_doy.item())
         foo_day.year = int(step_dt.year)
         foo_day.month = int(step_dt.month)
         foo_day.day = int(step_dt.day)
@@ -179,20 +183,26 @@ def field_day_loop(data, et_cell, debug_flag=False, return_df=False):
 
         # Calculate Kcb, Ke, ETc
         compute_field_et.compute_field_et(data, et_cell, crop, foo, foo_day,
-                                         debug_flag)
+                                          debug_flag)
 
         # Retrieve values from foo_day and write to output data frame
         # Eventually let compute_crop_et() write directly to output df
         foo.crop_df.at[step_dt, 'et_act'] = foo.etc_act
-        foo.crop_df.at[step_dt, 'et_pot'] = foo.etc_pot
+        foo.crop_df.at[step_dt, 'etref'] = et_cell.refet_df.at[step_dt, data.refet['fnspec']]
         foo.crop_df.at[step_dt, 'et_bas'] = foo.etc_bas
         foo.crop_df.at[step_dt, 'kc_act'] = foo.kc_act
         foo.crop_df.at[step_dt, 'kc_bas'] = foo.kc_bas
+        foo.crop_df.at[step_dt, 'ks'] = foo.ks
+        foo.crop_df.at[step_dt, 'ke'] = foo.ke
+        foo.crop_df.at[step_dt, 'ppt'] = foo_day.precip
+        foo.crop_df.at[step_dt, 'depl_root'] = foo.depl_root
+        foo.crop_df.at[step_dt, 'depl_surface'] = foo.depl_surface
+        foo.crop_df.at[step_dt, 'p_rz'] = foo.p_rz
+        foo.crop_df.at[step_dt, 'p_eft'] = foo.p_eft
         foo.crop_df.at[step_dt, 'irrigation'] = foo.irr_sim
         foo.crop_df.at[step_dt, 'runoff'] = foo.sro
         foo.crop_df.at[step_dt, 'dperc'] = foo.dperc
-        foo.crop_df.at[step_dt, 'p_rz'] = foo.p_rz
-        foo.crop_df.at[step_dt, 'p_eft'] = foo.p_eft
+        foo.crop_df.at[step_dt, 'zr'] = foo.zr
         foo.crop_df.at[step_dt, 'niwr'] = foo.niwr + 0
         foo.crop_df.at[step_dt, 'season'] = int(foo.in_season)
         foo.crop_df.at[step_dt, 'cutting'] = int(foo.cutting)
@@ -202,6 +212,25 @@ def field_day_loop(data, et_cell, debug_flag=False, return_df=False):
             pass
 
     if return_df:
+        foo.crop_df = foo.crop_df[['et_act',
+                                   'etref',
+                                   'et_bas',
+                                   'kc_act',
+                                   'kc_bas',
+                                   'ks',
+                                   'ke',
+                                   'ppt',
+                                   'depl_root',
+                                   'depl_surface',
+                                   'irrigation',
+                                   'runoff',
+                                   'dperc',
+                                   'p_rz',
+                                   'p_eft',
+                                   'zr',
+                                   'niwr',
+                                   'season',
+                                   'cutting']]
         return foo.crop_df
 
     # Write output files
