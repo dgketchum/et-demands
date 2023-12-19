@@ -302,15 +302,15 @@ class ObsETCell(ETCell):
         dct = {'curve_type_no': '5'}
         rs_obj = RemoteSensingData(**dct)
         _csv = os.path.join(data.crop_coefs_path, '{}_daily.csv'.format(self.cell_id))
-        coeff_df = pd.read_csv(_csv, index_col='date', infer_datetime_format=True, parse_dates=True)
-        rs_obj.data = coeff_df[['eta_r_mm', 'eta_o_mm', 'NDVI_NO_IRR', 'NDVI_IRR', 'ETF_NO_IRR', 'ETF_IRR']]
+        coeff_df = pd.read_csv(_csv, index_col='date', parse_dates=True)
+        rs_obj.data = coeff_df[['NDVI_NO_IRR', 'NDVI_IRR', 'ETF_NO_IRR', 'ETF_IRR']]
         self.crop_coeffs = {1: rs_obj}
 
     def set_refet_data(self, data, cells):
         """Read daily crop coefficient data from NDVI time series"""
 
         _csv = os.path.join(data.crop_coefs_path, '{}_daily.csv'.format(self.cell_id))
-        refet_df = pd.read_csv(_csv, index_col='date', infer_datetime_format=True, parse_dates=True)
+        refet_df = pd.read_csv(_csv, index_col='date', parse_dates=True)
         refet_df = refet_df[['etr_mm', 'eto_mm', 'etr_mm_uncorr', 'eto_mm_uncorr']]
         if data.refet['type'] == 'eto':
             refet_df['etref'] = refet_df['eto_mm']

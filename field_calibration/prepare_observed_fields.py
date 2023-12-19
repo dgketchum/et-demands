@@ -55,24 +55,23 @@ def prepare_fields_properties(met_fields, soils, fields_out):
 
 
 def join_gridmet_remote_sensing_daily(fields, gridmet_dir, ndvi_masked, ndvi_unmasked, etf_masked, etf_unmasked,
-                                      et_data, dst_dir, overwrite=False, start_date=None, end_date=None):
-    ndvi_masked = pd.read_csv(ndvi_masked, index_col=0, infer_datetime_format=True, parse_dates=True)
-    ndvi_unmasked = pd.read_csv(ndvi_unmasked, index_col=0, infer_datetime_format=True, parse_dates=True)
-    etf_masked = pd.read_csv(etf_masked, index_col=0, infer_datetime_format=True, parse_dates=True)
-    etf_unmasked = pd.read_csv(etf_unmasked, index_col=0, infer_datetime_format=True, parse_dates=True)
+                                      dst_dir, overwrite=False, start_date=None, end_date=None):
+    ndvi_masked = pd.read_csv(ndvi_masked, index_col=0, parse_dates=True)
+    ndvi_unmasked = pd.read_csv(ndvi_unmasked, index_col=0, parse_dates=True)
+
+    etf_masked = pd.read_csv(etf_masked, index_col=0, parse_dates=True)
+    etf_unmasked = pd.read_csv(etf_unmasked, index_col=0, parse_dates=True)
+
+    if start_date:
+        ndvi_masked = ndvi_masked.loc[start_date: end_date]
+        ndvi_unmasked = ndvi_unmasked.loc[start_date: end_date]
+        etf_masked = etf_masked.loc[start_date: end_date]
+        etf_unmasked = etf_unmasked.loc[start_date: end_date]
+
     start, end = ndvi_masked.index[0], ndvi_masked.index[-1]
-    years = list(set([i.year for i in ndvi_masked.index]))
 
     fields = gpd.read_file(fields)
     fields.index = fields['FID']
-
-    et_data = pd.read_csv(et_data)
-    et_data.index = et_data['FID']
-    et_data = et_data.loc[fields.index]
-    et_months = [(y, m) for y in years for m in range(4, 11)]
-    et_cols = ['et_{}_{}'.format(y, m) for y, m in et_months]
-    et_data = et_data[et_cols]
-    et_index = [pd.to_datetime('{}-{}-01'.format(y, m)) for y, m in et_months]
 
     for f, row in fields.iterrows():
 
@@ -81,30 +80,7 @@ def join_gridmet_remote_sensing_daily(fields, gridmet_dir, ndvi_masked, ndvi_unm
             continue
 
         gridmet_file = os.path.join(gridmet_dir, 'gridmet_historical_{}.csv'.format(int(row['GFID'])))
-        gridmet = pd.read_csv(gridmet_file, index_col='date',
-                              infer_datetime_format=True,
-                              parse_dates=True).loc[start: end]
-
-        group_my = gridmet[['eto_mm', 'etr_mm']].groupby([gridmet.index.year, gridmet.index.month]).agg('sum')
-        group_my.index = pd.DatetimeIndex([pd.to_datetime('{}-{}-01'.format(y, m)) for y, m in group_my.index])
-        group_my = group_my.resample('D').ffill()
-        group_my = group_my.append(pd.DataFrame(index=pd.date_range(group_my.index[-1], end)[1:])).ffill()
-        fractional = gridmet.loc[group_my.index, ['eto_mm', 'etr_mm']] / group_my
-
-        et = pd.DataFrame(index=et_index, data=list(et_data.loc[f].values), columns=['et'])
-
-        # TODO: remove this hack to get ET data for the whole year once we have OpenET
-        append_ind = [pd.to_datetime('{}-01-01'.format(y)) for y in years]
-        append_data = [0.0 for y in years]
-        append = pd.DataFrame(data=append_data, index=append_ind, columns=['et'])
-        et = pd.concat([et, append])
-        et = et.sort_index()
-
-        et = et.resample('D').ffill()
-        et = et.append(pd.DataFrame(index=pd.date_range(et.index[-1], end)[1:])).ffill()
-
-        gridmet['eta_r_mm'] = fractional['etr_mm'] * et['et'].values * 1000
-        gridmet['eta_o_mm'] = fractional['eto_mm'] * et['et'].values * 1000
+        gridmet = pd.read_csv(gridmet_file, index_col='date', parse_dates=True).loc[start: end]
 
         gridmet.loc[ndvi_masked.index, 'NDVI_IRR'] = ndvi_masked[str(f)]
         gridmet.loc[ndvi_unmasked.index, 'NDVI_NO_IRR'] = ndvi_unmasked[str(f)]
@@ -157,7 +133,8 @@ if __name__ == '__main__':
     grimet_cent = os.path.join(d, 'examples', 'tongue', 'gis', 'tongue_gridmet_centroids.shp')
     fields_gridmet = os.path.join(d, 'examples', 'tongue', 'gis', 'tongue_fields_sample_gfid.shp')
     gridmet_dst = os.path.join(d, 'examples', 'tongue', 'climate')
-    # corrected_gridmet(fields_shp, grimet_cent, fields_gridmet, gridmet_dst, rasters_)
+    # corrected_gridmet(fields_shp, grimet_cent, fields_gridmet, gridmet_dst, rasters_, start='2000-01-01',
+    #                   end='2006-12-31')
 
     fields_gridmet = os.path.join(d, 'examples', 'tongue', 'gis', 'tongue_fields_sample_gfid.shp')
     gridmet_ = os.path.join(d, 'examples', 'tongue', 'climate')
@@ -168,8 +145,8 @@ if __name__ == '__main__':
     et_data_ = '/media/research/IrrigationGIS/Montana/tongue/all_data.csv'
     dst_dir_ = os.path.join(d, 'examples', 'tongue', 'landsat', 'field_daily')
     join_gridmet_remote_sensing_daily(fields_gridmet, gridmet_, ndvi_masked_, ndvi_inv_mask_, etf_masked_,
-                                      etf_inv_mask_, et_data_, dst_dir_, overwrite=False, start_date='2009-01-01',
-                                      end_date='2011-12-31')
+                                      etf_inv_mask_, dst_dir_, overwrite=True, start_date='2000-01-01',
+                                      end_date='2006-12-31')
 
     fields_props = os.path.join(d, 'examples', 'tongue', 'static', 'obs', 'tongue_fields_properties.shp')
     soils_ = os.path.join(d, 'examples', 'tongue', 'gis', 'soils_aea')
