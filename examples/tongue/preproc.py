@@ -7,7 +7,7 @@ import warnings
 warnings.filterwarnings("ignore", category=FutureWarning)
 
 d = '/home/dgketchum/PycharmProjects/et-demands/examples/tongue/'
-field_id = '1786'
+field_id = '1778'
 
 
 def preproc():
@@ -19,7 +19,9 @@ def preproc():
     data = data[['eta']]
     data.dropna(inplace=True)
     print('preproc mean: {}'.format(data.values.mean()))
-    np.savetxt(os.path.join(d, 'obs.np'), data.values)
+    _file = os.path.join(d, 'obs.np')
+    np.savetxt(_file, data.values)
+    print('Writing Obs to {}'.format(_file))
 
 
 preproc()

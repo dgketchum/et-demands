@@ -42,16 +42,14 @@ def kcb_daily(data, et_cell, crop, foo, foo_day,
     gs_start, gs_end = datetime.datetime(foo_day.year, 4, 1), datetime.datetime(foo_day.year, 10, 31)
     gs_start_doy, gs_end_doy = int(gs_start.strftime('%j')), int(gs_end.strftime('%j'))
 
-    if gs_start_doy < foo_day.doy < gs_end_doy:
-        if foo_day.year in et_cell.fallow_years or data.field_type == 'unirrigated':
-            kc_src = '{}_NO_IRR'.format(data.kc_proxy)
-        else:
-            kc_src = '{}_IRR'.format(data.kc_proxy)
-        dt_string = '{}-{:02d}-{:02d}'.format(foo_day.year, foo_day.month, foo_day.day)
-        foo.kc_bas = ndvi_coeff * et_cell.crop_coeffs[1].data.loc[dt_string, kc_src]
-
+    # if gs_start_doy < foo_day.doy < gs_end_doy:
+    if foo_day.year in et_cell.fallow_years or data.field_type == 'unirrigated':
+        kc_src = '{}_NO_IRR'.format(data.kc_proxy)
     else:
-        foo.kc_bas = 0.1
+        kc_src = '{}_IRR'.format(data.kc_proxy)
+    dt_string = '{}-{:02d}-{:02d}'.format(foo_day.year, foo_day.month, foo_day.day)
+    foo.kc_bas = et_cell.crop_coeffs[1].data.loc[dt_string, kc_src]
+
 
     # Save kcb value for use tomorrow in case curve needs to be extended until frost
     # Save kc_bas_prev prior to CO2 adjustment to avoid double correction

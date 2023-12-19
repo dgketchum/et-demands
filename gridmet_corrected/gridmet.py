@@ -102,7 +102,8 @@ def export_openet_correction_surfaces():
             print(desc)
 
 
-def corrected_gridmet(fields, gridmet_points, fields_join, gridmet_csv_dir, gridmet_ras):
+def corrected_gridmet(fields, gridmet_points, fields_join, gridmet_csv_dir, gridmet_ras,
+                      start=None, end=None):
     """This depends on running 'Raster Pixels to Points' on a WGS Gridmet raster,
      attributing GFID, lat, and lon in the attribute table, and saving to project crs: 5071.
      GFID is an arbitrary identifier e.g., $row_number. It further depends on projecting the
@@ -151,6 +152,11 @@ def corrected_gridmet(fields, gridmet_points, fields_join, gridmet_csv_dir, grid
     print('Get gridmet for {} target points'.format(len_))
     gridmet_pts.index = gridmet_pts['GFID']
 
+    if not start:
+        start = '1987-01-01'
+    if not end:
+        end = '2021-12-31'
+
     for k, v in tqdm(gridmet_targets.items(), total=len_):
         df, first = pd.DataFrame(), True
         for thredds_var, cols in CLIMATE_COLS.items():
@@ -159,7 +165,7 @@ def corrected_gridmet(fields, gridmet_points, fields_join, gridmet_csv_dir, grid
                 continue
             r = gridmet_pts.loc[k]
             lat, lon = r['lat'], r['lon']
-            g = GridMet(thredds_var, start='1987-01-01', end='2021-12-31', lat=lat, lon=lon)
+            g = GridMet(thredds_var, start=start, end=end, lat=lat, lon=lon)
             s = g.get_point_timeseries()
             df[variable] = s[thredds_var]
 

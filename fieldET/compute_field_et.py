@@ -152,16 +152,16 @@ def compute_field_et(data, et_cell, crop, foo, foo_day, debug_flag=False):
     # added 2/21/08 to make sure that a winter cover class is used if during non-growing season
     # override Kc_bas assigned from kcb_daily() if non-growing season and not water
 
-    if (not foo.in_season and
-        (crop.class_number < 55 or crop.class_number > 57)):
-        logging.debug(
-            'compute_crop_et(): kc_bas %.6f  kc_bas_wscc %.6f  wscc %.6f' % (
-                foo.kc_bas, foo.kc_bas_wscc[wscc], wscc))
-        # Set higher dormant kc min for warm season turfgrass (Crop 87); added 5/1/2020
-        if crop.class_number in [87]:
-            foo.kc_bas = 0.25
-        else:
-            foo.kc_bas = foo.kc_bas_wscc[wscc]
+    # if (not foo.in_season and
+    #     (crop.class_number < 55 or crop.class_number > 57)):
+    #     logging.debug(
+    #         'compute_crop_et(): kc_bas %.6f  kc_bas_wscc %.6f  wscc %.6f' % (
+    #             foo.kc_bas, foo.kc_bas_wscc[wscc], wscc))
+    #     # Set higher dormant kc min for warm season turfgrass (Crop 87); added 5/1/2020
+    #     if crop.class_number in [87]:
+    #         foo.kc_bas = 0.25
+    #     else:
+    #         foo.kc_bas = foo.kc_bas_wscc[wscc]
 
     # limit kc_max to at least Kc_bas + .05
 
@@ -454,7 +454,7 @@ def compute_field_et(data, et_cell, crop, foo, foo_day, debug_flag=False):
 
     ke_ppt = min(max(ke_ppt, 0), fewp * kc_max)
 
-    ke = ke_irr + ke_ppt
+    foo.ke = ke_irr + ke_ppt
 
     # Transpiration coefficient for moisture stress
 
@@ -470,23 +470,23 @@ def compute_field_et(data, et_cell, crop, foo, foo_day, debug_flag=False):
     # AD is allowable depletion
 
     if foo.depl_root > raw:
-        ks = max((taw - foo.depl_root) / (taw - raw), 0)
+        foo.ks = max((taw - foo.depl_root) / (taw - raw), 0)
     else:
-        ks = 1
+        foo.ks = 1
 
     # Check to see if stress flag is turned off.
 
     if crop.invoke_stress < 1:
         # no stress if flag = 0 #'used to be irrigtypeflag=2
 
-        ks = 1
+        foo.ks = 1
     elif crop.invoke_stress == 1:
         # Unrecoverable stress.  No greenup after this.
 
-        if ks < 0.05 and foo.in_season and foo.kc_bas > 0.3:
+        if foo.ks < 0.05 and foo.in_season and foo.kc_bas > 0.3:
             foo.stress_event = True
         if foo.stress_event:
-            ks = 0.0
+            foo.ks = 0.0
 
     # Calculate Kc during snow cover
 
@@ -505,15 +505,15 @@ def compute_field_et(data, et_cell, crop, foo, foo_day, debug_flag=False):
 
         kc_mult = kc_mult * 0.7
 
-    ke *= kc_mult
+    foo.ke *= kc_mult
     ke_irr *= kc_mult
     ke_ppt *= kc_mult
 
     # Don't reduce Kc_bas, since it may be held constant during non-growing periods.
     # Make adjustment to kc_act
 
-    foo.kc_act = kc_mult * ks * foo.kc_bas + ke
-    foo.kc_pot = foo.kc_bas + ke
+    foo.kc_act = kc_mult * foo.ks * foo.kc_bas + foo.ke
+    foo.kc_pot = foo.kc_bas + foo.ke
 
     # ETref is defined (to ETo or ETr) in CropCycle sub #'Allen 12/26/2007
 
@@ -523,7 +523,7 @@ def compute_field_et(data, et_cell, crop, foo, foo_day, debug_flag=False):
     if debug_flag:
         logging.debug(
             ('compute_crop_et(): kc_mult %.6f  ke %.6f  ke_irr %.6f  ke_ppt %.6f') %
-            (kc_mult, ke, ke_irr, ke_ppt))
+            (kc_mult, foo.ke, ke_irr, ke_ppt))
         logging.debug(
             ('compute_crop_et(): kc_bas %.6f  kc_pot %.6f  kc_act %.6f') %
             (foo.kc_bas, foo.kc_pot, foo.kc_act))
@@ -531,7 +531,7 @@ def compute_field_et(data, et_cell, crop, foo, foo_day, debug_flag=False):
             ('compute_crop_et(): etc_bas %.6f  etc_pot %.6f  etc_act %.6f') %
             (foo.etc_bas, foo.etc_pot, foo.etc_act))
 
-    e = ke * foo_day.etref
+    e = foo.ke * foo_day.etref
     e_irr = ke_irr * foo_day.etref
     e_ppt = ke_ppt * foo_day.etref
 
@@ -580,7 +580,7 @@ def compute_field_et(data, et_cell, crop, foo, foo_day, debug_flag=False):
 
     # this had a few in equation as compared to Allen et al., 2005, ASCE
 
-    te_irr = kc_mult * ks * foo.kc_bas * foo_day.etref * kt_prop
+    te_irr = kc_mult * foo.ks * foo.kc_bas * foo_day.etref * kt_prop
 
     # For precip wetted fraction beyond that irrigated
     # fewp added, 8/2006, that is not in Allen et al., 2005, ASCE
@@ -594,7 +594,7 @@ def compute_field_et(data, et_cell, crop, foo, foo_day, debug_flag=False):
 
     # this had a fewp in equation as compared to Allen et al., 2005, ASCE
 
-    te_ppt = kc_mult * ks * foo.kc_bas * foo_day.etref * kt_prop
+    te_ppt = kc_mult * foo.ks * foo.kc_bas * foo_day.etref * kt_prop
 
     # Setup for water balance of evaporation layer
 
@@ -677,16 +677,16 @@ def compute_field_et(data, et_cell, crop, foo, foo_day, debug_flag=False):
 
     ke_irr = min(max(ke_irr, 0), 1.5)
     ke_ppt = min(max(ke_ppt, 0), 1.5)
-    ke = ke_irr + ke_ppt
-    e = ke * foo_day.etref
+    foo.ke = ke_irr + ke_ppt
+    e = foo.ke * foo_day.etref
     if kc_mult > 1:
         logging.warning("kcmult > 1.")
         return
-    if ks > 1:
+    if foo.ks > 1:
         logging.warning("ks > 1.")
         return
-    foo.kc_act = kc_mult * ks * foo.kc_bas + ke
-    foo.kc_pot = foo.kc_bas + ke
+    foo.kc_act = kc_mult * foo.ks * foo.kc_bas + foo.ke
+    foo.kc_pot = foo.kc_bas + foo.ke
 
     # # CO2 correction
     # if data.co2_flag:
@@ -755,7 +755,7 @@ def compute_field_et(data, et_cell, crop, foo, foo_day, debug_flag=False):
     irr_sim_prev = foo.irr_sim
     foo.irr_sim = 0.0
 
-    if foo.irr_flag:
+    if data.field_type == 'irrigated':
 
         if foo.obs_flag:
             if foo_day.year in et_cell.irrigation_data.keys():
@@ -947,5 +947,5 @@ def compute_field_et(data, et_cell, crop, foo, foo_day, debug_flag=False):
     # This is done in setup_dormant().
 
     # Get setup for next time step.
-    if foo.in_season:
-        grow_root.grow_root(crop, foo, debug_flag)
+    # if foo.in_season:
+    grow_root.grow_root(crop, foo, debug_flag)

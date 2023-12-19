@@ -1,6 +1,6 @@
 import os
 
-import pycup as cp
+# import pycup as cp
 import numpy as np
 import pandas as pd
 
@@ -62,6 +62,7 @@ if __name__ == '__main__':
     data = data[['eta']]
     data[data.values <= 0] = np.nan
     data.dropna(inplace=True)
+    data.to_csv(os.path.join(d, 'target', 'eta.csv'))
     idx = [i for i in data.index if i.month in list(range(5, 11)) and i.year == 2021]
 
     ini = os.path.join(d, 'tongue_example_cet_obs.ini')

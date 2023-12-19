@@ -230,12 +230,14 @@ class InitializeObsCropCycle:
         # For flag=1 or 2, turn irrigation on for a generally 'irrigated' region
         # For flag=3, turn irrigation on for specific irrigated crops even in non-irrigated region
         # Added Jan 2007 to force grain and turf irrigation in rainfed region
-        if crop.irrigation_flag >= 1:
-            self.irr_flag = True  # turn irrigation on for a generally 'irrigated' region
+
+        # Now setting irrigaiton flag explicitly in ObsFieldETData() instantiation
+        # if crop.irrigation_flag >= 1:
+        #     self.irr_flag = True  # turn irrigation on for a generally 'irrigated' region
         # Either no irrigations for this crop or station or
         #      irrigation off even in irrigated region if this crop has no flag
-        else:
-            self.irr_flag = False  # no irrigations for this crop or station
+        # else:
+        #     self.irr_flag = False  # no irrigations for this crop or station
 
         # CGM - Original code for setting irrigation flag
         # DLK - one is by crop in crop parameters; other is by crop in by et cell
