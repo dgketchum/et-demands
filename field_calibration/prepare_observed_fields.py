@@ -144,17 +144,17 @@ if __name__ == '__main__':
     etf_inv_mask_ = os.path.join(d, 'examples', 'tongue', 'landsat', 'tongue_etf_inv_mask_sample.csv')
     et_data_ = '/media/research/IrrigationGIS/Montana/tongue/all_data.csv'
     dst_dir_ = os.path.join(d, 'examples', 'tongue', 'landsat', 'field_daily')
-    join_gridmet_remote_sensing_daily(fields_gridmet, gridmet_, ndvi_masked_, ndvi_inv_mask_, etf_masked_,
-                                      etf_inv_mask_, dst_dir_, overwrite=True, start_date='2000-01-01',
-                                      end_date='2006-12-31')
+    # join_gridmet_remote_sensing_daily(fields_gridmet, gridmet_, ndvi_masked_, ndvi_inv_mask_, etf_masked_,
+    #                                   etf_inv_mask_, dst_dir_, overwrite=True, start_date='2000-01-01',
+    #                                   end_date='2006-12-31')
 
     fields_props = os.path.join(d, 'examples', 'tongue', 'static', 'obs', 'tongue_fields_properties.shp')
-    soils_ = os.path.join(d, 'examples', 'tongue', 'gis', 'soils_aea')
+    soils_ = '/media/research/IrrigationGIS/Montana/tongue/et_demands/gis/soils_aea'
     # TODO: write ndvi series to a separate file, or read the entire climate/ndvi file into the ObsCellET object
     # prepare_fields_properties(fields_gridmet, soils_, fields_props)
 
     cdl_ = os.path.join(d, 'examples', 'tongue', 'static', 'obs', 'tongue_sample_cdl.csv')
-    cross_ = os.path.join(d, 'et-demands/prep/cdl_crosswalk_default.csv')
+    cross_ = os.path.join(d, 'examples', 'tongue', 'static', 'cdl_crosswalk_default.csv')
     out_ = os.path.join(d, 'examples', 'tongue', 'static', 'obs', 'tongue_sample_field_crops.json')
     # prep_fields_crops(cdl_, cross_, out_)
 

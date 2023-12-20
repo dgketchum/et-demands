@@ -101,12 +101,12 @@ def detect_cuttings(ndvi_masked, ndvi_unmasked, irr_csv, out_json, plots=None, i
 
                 # locally modified each detecta function to customize plotting
                 peaks = detect_peaks(vals.flatten(), mph=0.500, mpd=30, threshold=0, valley=False,
-                                     show=False, save_fig=peak_fig)
+                                     show=False)
 
                 ta, tai, _, _ = detect_cusum(vals, threshold=0.100, ending=False, show=False,
-                                             drift=0.005, save_fig=cumsum_fig)
+                                             drift=0.005)
 
-                onsets = detect_onset(vals, threshold=0.550, show=False, save_fig=onset_fig)
+                onsets = detect_onset(vals, threshold=0.550, show=False)
 
                 if plots:
                     plot_peaks(c, yr, plots)
@@ -210,9 +210,10 @@ def plot_peaks(field_id, yr, plots):
 if __name__ == '__main__':
 
     root = '/home/dgketchum/PycharmProjects/et-demands/examples/tongue'
+    drive = '/media/research/IrrigationGIS/Montana/tongue/et_demands'
 
     types_ = ['irr', 'inv_irr']
-    sensing_param = 'etf'
+    sensing_param = 'ndvi'
 
     for mask_type in types_:
 
@@ -222,10 +223,10 @@ if __name__ == '__main__':
         tif, src = None, None
 
         if mask_type == 'irr':
-            tif = os.path.join(root, 'landsat', sensing_param, 'input_masked')
+            tif = os.path.join(drive, sensing_param, 'input_masked')
             src = os.path.join(root, 'landsat', 'tongue_{}_masked_sample.csv'.format(sensing_param))
         elif mask_type == 'inv_irr':
-            tif = os.path.join(root, 'landsat', sensing_param, 'input_inv_mask')
+            tif = os.path.join(drive, sensing_param, 'input_inv_mask')
             src = os.path.join(root, 'landsat', 'tongue_{}_inv_mask_sample.csv'.format(sensing_param))
 
         # landsat_time_series(shp, tif, yrs, src)
@@ -237,5 +238,5 @@ if __name__ == '__main__':
     masked_ = os.path.join(root, 'landsat', 'tongue_{}_masked_sample.csv'.format(sensing_param))
     _inv_mask = os.path.join(root, 'landsat', 'tongue_{}_inv_mask_sample.csv'.format(sensing_param))
 
-    detect_cuttings(masked_, _inv_mask, irr_, js_, plots=figs, irr_threshold=0.5)
+    detect_cuttings(masked_, _inv_mask, irr_, js_, plots=None, irr_threshold=0.5)
 # ========================= EOF ================================================================================

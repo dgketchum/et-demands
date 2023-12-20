@@ -78,9 +78,14 @@ def compute_field_et(data, et_cell, crop, foo, foo_day, debug_flag=False):
 
     wscc = crop.winter_surface_cover_class
 
-    # Assume that winter time is constrained to Nov-March in northern hemisphere
-    # Also set up kc_max for non-growing seasons for other crops
-    # Kc_max for wintertime land use (Nov-Mar)for non-growing season crops
+    dt_string = '{}-{:02d}-{:02d}'.format(foo_day.year, foo_day.month, foo_day.day)
+    if foo_day.year in et_cell.fallow_years or data.field_type == 'unirrigated':
+        ndvi_src = '{}_NO_IRR'.format(data.kc_proxy)
+    else:
+        ndvi_src = '{}_IRR'.format(data.kc_proxy)
+
+    foo.ndvi = et_cell.crop_coeffs[1].data.loc[dt_string, ndvi_src]
+    foo.fc = foo.ndvi_alpha * foo.ndvi + foo.ndvi_beta
 
     if util.is_winter(et_cell, foo_day):
         if crop.class_number not in [44, 45, 46]:
@@ -149,29 +154,7 @@ def compute_field_et(data, et_cell, crop, foo, foo_day, debug_flag=False):
 
             foo.fc = 0.7
 
-    # added 2/21/08 to make sure that a winter cover class is used if during non-growing season
-    # override Kc_bas assigned from kcb_daily() if non-growing season and not water
-
-    # if (not foo.in_season and
-    #     (crop.class_number < 55 or crop.class_number > 57)):
-    #     logging.debug(
-    #         'compute_crop_et(): kc_bas %.6f  kc_bas_wscc %.6f  wscc %.6f' % (
-    #             foo.kc_bas, foo.kc_bas_wscc[wscc], wscc))
-    #     # Set higher dormant kc min for warm season turfgrass (Crop 87); added 5/1/2020
-    #     if crop.class_number in [87]:
-    #         foo.kc_bas = 0.25
-    #     else:
-    #         foo.kc_bas = foo.kc_bas_wscc[wscc]
-
-    # limit kc_max to at least Kc_bas + .05
-
     kc_max = max(kc_max, foo.kc_bas + 0.05)
-
-    # kc_min is minimum evaporation for 0 ground cover under dry soil surface
-    # but with diffusive evaporation.
-    # kc_min is used to estimate fraction of ground cover for crops.
-    # Set kc_min to 0.1 for all vegetation covers (crops and natural)
-    # Kc_bas will be reduced for all surfaces not irrigated when stressed, even during winter.
 
     # Use same value for both ETr or ETo bases.
 
@@ -948,4 +931,4 @@ def compute_field_et(data, et_cell, crop, foo, foo_day, debug_flag=False):
 
     # Get setup for next time step.
     # if foo.in_season:
-    grow_root.grow_root(crop, foo, debug_flag)
+    grow_root.grow_root(crop, foo, foo_day, et_cell, data, debug_flag)
