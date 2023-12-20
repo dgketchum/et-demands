@@ -78,18 +78,18 @@ if __name__ == '__main__':
     is_authorized()
     bucket_ = 'wudr'
 
-    fc = ee.FeatureCollection(ee.Feature(ee.Geometry.Polygon([[-105.85544392193924, 46.105576651626485],
-                                                              [-105.70747181500565, 46.105576651626485],
-                                                              [-105.70747181500565, 46.222566236544104],
-                                                              [-105.85544392193924, 46.222566236544104],
-                                                              [-105.85544392193924, 46.105576651626485]]),
-                                         {'key': 'Tongue_Ex'}))
+    fc = ee.FeatureCollection(ee.Feature(ee.Geometry.Polygon([[-106.63372199162623, 46.235698473362476],
+                                                              [-106.49124304875514, 46.235698473362476],
+                                                              [-106.49124304875514, 46.31472036075997],
+                                                              [-106.63372199162623, 46.31472036075997],
+                                                              [-106.63372199162623, 46.235698473362476]]),
+                                         {'key': 'Flynn_Ex'}))
 
-    types_ = ['no_mask', 'irr', 'inv_irr']
+    types_ = ['inv_irr']
 
     for mask_type in types_:
 
-        for y in [x for x in range(1987, 2022)]:
-            export_ndvi(fc, y, bucket_, debug=True, mask_type=mask_type)
+        for y in [x for x in range(2015, 2021)]:
+            export_ndvi(fc, y, bucket_, debug=False, mask_type=mask_type)
             pass
 # ========================= EOF ====================================================================
