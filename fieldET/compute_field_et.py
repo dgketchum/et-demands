@@ -931,4 +931,4 @@ def compute_field_et(data, et_cell, crop, foo, foo_day, debug_flag=False):
 
     # Get setup for next time step.
     # if foo.in_season:
-    grow_root.grow_root(crop, foo, foo_day, et_cell, data, debug_flag)
+    grow_root.grow_root(crop, foo, foo_day, debug_flag)

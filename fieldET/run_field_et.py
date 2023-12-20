@@ -50,6 +50,7 @@ def run_fields(ini_path, debug_flag=False, field_type='irrigated', target_field=
         print('Execution time: {:.2f}'.format(end_time - start_time))
         print('Mean Obs: {:.2f}, Mean Pred: {:.2f}'.format(obs.mean(), pred.mean()))
         print('RMSE: {:.4f}\n\n\n\n'.format(rmse))
+        # df = df.loc['2003-01-01': '2003-12-31']
         pass
 
 

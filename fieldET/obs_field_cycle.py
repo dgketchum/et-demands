@@ -93,13 +93,14 @@ def field_day_loop(data, et_cell, debug_flag=False, return_df=False):
             assert v.loc[0, 'pargp1'] == k
 
             value = v.loc[0, '1']
-            # TODO: change this to vectorize parameters (i.e., put in 2D ndarray, remove '.item' call)
+
             foo.__setattr__(k, value)
             print('{}: {:.1f}'.format(k, value))
             if k == 'aw':
-                foo.__setattr__('depl_root', value / 4)
+                foo.__setattr__('depl_root', foo.aw)
             if k == 'rew':
-                foo.__setattr__('depl_surface', value / 4)
+                foo.__setattr__('depl_surface', foo.tew)
+                foo.__setattr__('depl_zep', foo.rew)
 
     # GetCO2 correction factors for each crop
     if data.co2_flag:
@@ -225,13 +226,13 @@ def field_day_loop(data, et_cell, debug_flag=False, return_df=False):
                                    'ppt',
                                    'depl_root',
                                    'depl_surface',
-                                   'irrigation',
-                                   'runoff',
+                                   'zr',
                                    'dperc',
                                    'p_rz',
                                    'p_eft',
-                                   'zr',
                                    'niwr',
+                                   'irrigation',
+                                   'runoff',
                                    'season',
                                    'cutting']]
         return foo.crop_df

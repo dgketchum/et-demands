@@ -11,7 +11,7 @@ import datetime
 import numpy as np
 
 
-def grow_root(crop, foo, foo_day, cell, data, debug_flag=False):
+def grow_root(crop, foo, foo_day, debug_flag=False):
     """Determine depth of root zone
     Parameters
     ----------
@@ -42,6 +42,7 @@ def grow_root(crop, foo, foo_day, cell, data, debug_flag=False):
     # fractime = min(max(fractime, 0), 1)
 
     # dgketchum hacks for fractime function
+    # idea would be to use ETf or NDVI thresholds to integrate growth over time
     # if foo.grow_root:
     #     if foo_day.year in cell.fallow_years or data.field_type == 'unirrigated':
     #         kc_src = '{}_NO_IRR'.format(data.kc_proxy)
@@ -59,12 +60,13 @@ def grow_root(crop, foo, foo_day, cell, data, debug_flag=False):
     gs_start_doy, gs_end_doy = int(gs_start.strftime('%j')), int(gs_end.strftime('%j'))
     fractime = (foo_day.doy - gs_start_doy) / (gs_end_doy - gs_start_doy)
 
-    if fractime > 0.0:
+    if 1.0 > fractime > 0.0:
         # Borg and Grimes (1986) sigmoidal function
         foo.zr = (
             (0.5 + 0.5 * math.sin(3.03 * fractime - 1.47)) *
             (foo.zr_max - foo.zr_min) + foo.zr_min)
-    else:
+
+    elif foo_day.doy < gs_start_doy or foo_day.doy > gs_end_doy:
         foo.zr = foo.zr_min
 
     delta_zr = foo.zr - zr_prev
@@ -76,7 +78,6 @@ def grow_root(crop, foo, foo_day, cell, data, debug_flag=False):
         foo.depl_root += delta_zr * (foo.aw - foo.aw3)
 
     # Also keep zr from #'shrinking' (for example, with multiple alfalfa cycles
-    foo.zr = max(foo.zr, zr_prev)
 
     if debug_flag:
         logging.debug(

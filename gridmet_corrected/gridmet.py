@@ -111,6 +111,8 @@ def corrected_gridmet(fields, gridmet_points, fields_join, gridmet_csv_dir, grid
 
     print('Find field-gridmet joins')
 
+    convert_to_wgs84 = lambda x, y: pyproj.Transformer.from_crs('EPSG:5071', 'EPSG:4326').transform(x, y)
+
     gridmet_pts = gpd.read_file(gridmet_points)
     fields = gpd.read_file(fields)
 
@@ -123,6 +125,11 @@ def corrected_gridmet(fields, gridmet_points, fields_join, gridmet_csv_dir, grid
         min_distance = 1e13
         closest_fid = None
 
+        xx, yy = field['geometry'].centroid.x, field['geometry'].centroid.y
+        lat, lon = convert_to_wgs84(xx, yy)
+        fields.at[i, 'LAT'] = lat
+        fields.at[i, 'LON'] = lon
+
         for j, g_point in gridmet_pts.iterrows():
             distance = field['geometry'].centroid.distance(g_point['geometry'])
 
@@ -133,6 +140,7 @@ def corrected_gridmet(fields, gridmet_points, fields_join, gridmet_csv_dir, grid
 
         fields.at[i, 'GFID'] = closest_fid
         fields.at[i, 'STATION_ID'] = closest_fid
+
         if closest_fid not in gridmet_targets.keys():
             gridmet_targets[closest_fid] = {str(m): {} for m in range(1, 13)}
             gdf = gpd.GeoDataFrame({'geometry': [closest_geo]})
