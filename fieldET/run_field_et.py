@@ -10,7 +10,7 @@ from fieldET import obs_crop_et_data
 from fieldET import obs_et_cell
 
 
-def run_fields(ini_path, debug_flag=False, field_type='irrigated', target_field='1778'):
+def run_fields(ini_path, debug_flag=False, field_type='irrigated', target_field='2100'):
 
     data = obs_crop_et_data.ObsFieldETData(field_type=field_type)
     data.read_cet_ini(ini_path, debug_flag)

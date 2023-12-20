@@ -50,7 +50,6 @@ def kcb_daily(data, et_cell, crop, foo, foo_day,
     dt_string = '{}-{:02d}-{:02d}'.format(foo_day.year, foo_day.month, foo_day.day)
     foo.kc_bas = et_cell.crop_coeffs[1].data.loc[dt_string, kc_src]
 
-
     # Save kcb value for use tomorrow in case curve needs to be extended until frost
     # Save kc_bas_prev prior to CO2 adjustment to avoid double correction
     foo.kc_bas_prev = foo.kc_bas
@@ -67,6 +66,13 @@ def kcb_daily(data, et_cell, crop, foo, foo_day,
 
     # Save kcb value for use tomorrow in case curve needs to be extended until frost
     # Save kc_bas_prev prior to CO2 adjustment to avoid double correction
+
+    # dgketchum mod to 'turn on' root growth
+    if foo_day.doy > gs_start_doy and 0.10 <= foo.kc_bas:
+        foo.grow_root = True
+    elif foo_day.doy < gs_start_doy or foo_day.doy > gs_end_doy:
+        foo.grow_root = False
+
     foo.kc_bas_prev = foo.kc_bas
 
     foo.height = max(foo.height, 0.05)
