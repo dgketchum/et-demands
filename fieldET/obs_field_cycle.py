@@ -86,17 +86,20 @@ def field_day_loop(data, et_cell, debug_flag=False, return_df=False):
     if data.calibration:
         # PEST++ hacking
 
-        for k in data.calibrated_parameters:
-            fname = data.calibration_mult_files[data.calibrated_parameters.index(k)]
-            f = os.path.join(data.calibration_folder, fname)
+        for k, f in data.calibration_files.items():
+
+            v = pd.read_csv(f, index_col=None, header=0)
+
+            assert v.loc[0, 'pargp1'] == k
+
+            value = v.loc[0, '1']
             # TODO: change this to vectorize parameters (i.e., put in 2D ndarray, remove '.item' call)
-            v = pd.read_csv(f, index_col=None, header=None, dtype=float).values.item()
-            foo.__setattr__(k, v)
-            print('{}: {:.1f}'.format(k, v))
+            foo.__setattr__(k, value)
+            print('{}: {:.1f}'.format(k, value))
             if k == 'aw':
-                foo.__setattr__('depl_root', 0.0)
+                foo.__setattr__('depl_root', value / 4)
             if k == 'rew':
-                foo.__setattr__('depl_surface', 0.0)
+                foo.__setattr__('depl_surface', value / 4)
 
     # GetCO2 correction factors for each crop
     if data.co2_flag:

@@ -27,6 +27,11 @@ class ObsFieldETData(CropETData):
 
     def __init__(self, field_type='irrigated'):
         super().__init__()
+        self.calibration = None
+        self.calibration_folder = None
+        self.calibrated_parameters = None
+        self.calibration_files = None
+        self.parameter_values = None
         self.field_type = field_type
 
     def __str__(self):
@@ -522,11 +527,11 @@ class ObsFieldETData(CropETData):
 
         self.calibration = bool(config.get(calib_sec, 'calibrate_flag'))
         if self.calibration:
-            self.calibration_folder = config.get(calib_sec, 'calibration_folder')
-            self.tunable_file_fmt = config.get(calib_sec, 'tunable_file_fmt')
+            cf = config.get(calib_sec, 'calibration_folder')
+            self.calibration_folder = cf
             self.calibrated_parameters = config.get(calib_sec, 'calibrated_parameters').split(',')
-            self.calibration_mult_files = config.get(calib_sec, 'calibration_mult_files').split(',')
-
+            _files = sorted([os.path.join(cf, f) for f in os.listdir(cf)])
+            self.calibration_files = {k: v for k, v in zip(self.calibrated_parameters, _files)}
 
         """
         INI [REFET] Section

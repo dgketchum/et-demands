@@ -30,7 +30,7 @@ if __name__ == '__main__':
     pp_dir = os.path.join(d, 'pest')
 
     # obs_file = os.path.join(pp_dir, 'eta.csv')
-    ins = '1786.ins'
+    ins = '2100.ins'
     p_file = 'params.csv'
 
     dct = {'obs': {'file': 'eta.np',
