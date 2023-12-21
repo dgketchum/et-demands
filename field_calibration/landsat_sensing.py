@@ -53,13 +53,15 @@ def get_list_info(tif_dir, year):
     return l, dates_
 
 
-def detect_cuttings(ndvi_masked, ndvi_unmasked, irr_csv, out_json, plots=None, irr_threshold=0.5):
-    masked = pd.read_csv(ndvi_masked, index_col=0, parse_dates=True, infer_datetime_format=True)
-    unmasked = pd.read_csv(ndvi_unmasked, index_col=0, parse_dates=True, infer_datetime_format=True)
-    cols = list(masked.columns)
-    years = list(set([i.year for i in masked.index]))
+def detect_cuttings(ndvi_unmasked, irr_csv, out_json, ndvi_masked=None, plots=None, irr_threshold=0.5):
+    unmasked = pd.read_csv(ndvi_unmasked, index_col=0, parse_dates=True)
+    cols = list(unmasked.columns)
+    years = list(set([i.year for i in unmasked.index]))
     irr = pd.read_csv(irr_csv, index_col=0)
     irr.drop(columns=['LAT', 'LON'], inplace=True)
+
+    if ndvi_masked:
+        masked = pd.read_csv(ndvi_masked, index_col=0, parse_dates=True)
 
     irrigated, fields = False, {c: {} for c in cols}
     for c in cols:
@@ -77,7 +79,7 @@ def detect_cuttings(ndvi_masked, ndvi_unmasked, irr_csv, out_json, plots=None, i
             f_irr = irr.at[int(c), 'irr_{}'.format(yr)]
             irrigated = f_irr > irr_threshold
             if irrigated:
-                df = masked.loc['{}-01-01'.format(yr): '{}-12-31'.format(yr), [c]]
+                df = unmasked.loc['{}-01-01'.format(yr): '{}-12-31'.format(yr), [c]]
             else:
                 df = unmasked.loc['{}-01-01'.format(yr): '{}-12-31'.format(yr), [c]]
 
@@ -209,34 +211,28 @@ def plot_peaks(field_id, yr, plots):
 
 if __name__ == '__main__':
 
-    root = '/home/dgketchum/PycharmProjects/et-demands/examples/tongue'
+    domain = 'flynn'
+    root = '/home/dgketchum/PycharmProjects/et-demands/examples/{}'.format(domain)
     drive = '/media/research/IrrigationGIS/Montana/tongue/et_demands'
 
-    types_ = ['irr', 'inv_irr']
-    sensing_param = 'ndvi'
+    types_ = ['irr']
+    sensing_param = 'ETF'
 
     for mask_type in types_:
 
-        yrs = [x for x in range(1987, 2022)]
-        shp = os.path.join(root, 'gis', 'tongue_fields_sample.shp')
+        yrs = [x for x in range(2015, 2022)]
+        shp = os.path.join(root, 'gis', '{}_fields_sample.shp'.format(domain))
 
         tif, src = None, None
 
         if mask_type == 'irr':
-            tif = os.path.join(drive, sensing_param, 'input_masked')
-            src = os.path.join(root, 'landsat', 'tongue_{}_masked_sample.csv'.format(sensing_param))
+            tif = os.path.join(drive, domain, sensing_param, 'input_masked')
+            src = os.path.join(root, 'landsat', '{}_{}_masked_sample.csv'.format(domain, sensing_param))
         elif mask_type == 'inv_irr':
-            tif = os.path.join(drive, sensing_param, 'input_inv_mask')
-            src = os.path.join(root, 'landsat', 'tongue_{}_inv_mask_sample.csv'.format(sensing_param))
+            tif = os.path.join(drive, domain, sensing_param, 'input_inv_mask')
+            src = os.path.join(root, 'landsat', '{}_{}_inv_mask_sample.csv'.format(domain, sensing_param))
 
-        # landsat_time_series(shp, tif, yrs, src)
+        landsat_time_series(shp, tif, yrs, src)
 
-    irr_ = os.path.join(root, 'landsat', 'tongue_sample_irr.csv')
-    js_ = os.path.join(root, 'landsat', 'tongue_{}_cuttings.json'.format(sensing_param))
-    figs = '/home/dgketchum/Downloads/cuttings'
 
-    masked_ = os.path.join(root, 'landsat', 'tongue_{}_masked_sample.csv'.format(sensing_param))
-    _inv_mask = os.path.join(root, 'landsat', 'tongue_{}_inv_mask_sample.csv'.format(sensing_param))
-
-    detect_cuttings(masked_, _inv_mask, irr_, js_, plots=None, irr_threshold=0.5)
 # ========================= EOF ================================================================================
