@@ -13,10 +13,7 @@ import pyproj
 from ee_api.ee_utils import is_authorized
 from gridmet_corrected.thredds import GridMet, BBox
 
-CRS_TRANSFORM = [0.041666666666666664,
-                 0, -124.78749996666667,
-                 0, -0.041666666666666664,
-                 49.42083333333334]
+
 
 CLIMATE_COLS = {
     'etr': {
@@ -79,27 +76,7 @@ COLUMN_ORDER = ['date',
                 'eto_mm']
 
 
-def export_openet_correction_surfaces():
-    is_authorized()
 
-    for etref in ['etr', 'eto']:
-        id_ = 'projects/openet/reference_et/gridmet/ratios/v1/monthly/{}'.format(etref)
-        c = ee.ImageCollection(id_)
-        scenes = c.aggregate_histogram('system:index').getInfo()
-        for k in list(scenes.keys()):
-            month_number = datetime.strptime(k, '%b').month
-            desc = 'gridmet_corrected_{}_{}'.format(etref, month_number)
-            i = ee.Image(os.path.join(id_, k))
-            task = ee.batch.Export.image.toCloudStorage(
-                i,
-                description=desc,
-                bucket='wudr',
-                dimensions='1386x585',
-                fileNamePrefix=desc,
-                crsTransform=CRS_TRANSFORM,
-                crs='EPSG:4326')
-            task.start()
-            print(desc)
 
 
 def corrected_gridmet(fields, gridmet_points, fields_join, gridmet_csv_dir, gridmet_ras,

@@ -1,6 +1,12 @@
+import os
 from datetime import datetime
 
 import ee
+
+CRS_TRANSFORM = [0.041666666666666664,
+                 0, -124.78749996666667,
+                 0, -0.041666666666666664,
+                 49.42083333333334]
 
 
 def add_doy(image):
@@ -186,6 +192,34 @@ def landsat_composites(year, start, end, roi, append_name, composites_only=False
     return bands
 
 
+def export_openet_correction_surfaces(local_check):
+    is_authorized()
+
+    for etref in ['etr', 'eto']:
+        id_ = 'projects/openet/reference_et/gridmet/ratios/v1/monthly/{}'.format(etref)
+        c = ee.ImageCollection(id_)
+        scenes = c.aggregate_histogram('system:index').getInfo()
+        for k in list(scenes.keys()):
+            month_number = datetime.strptime(k, '%b').month
+            if local_check:
+                f = 'gridmet_corrected_{}'.format(etref)
+                local_file = os.path.join(local_check, '{}_{}.tif'.format(f, month_number))
+                if os.path.exists(local_file):
+                    continue
+            desc = 'gridmet_corrected_{}_{}'.format(etref, month_number)
+            i = ee.Image(os.path.join(id_, k))
+            task = ee.batch.Export.image.toCloudStorage(
+                i,
+                description=desc,
+                bucket='wudr',
+                dimensions='1386x585',
+                fileNamePrefix=desc,
+                crsTransform=CRS_TRANSFORM,
+                crs='EPSG:4326')
+            task.start()
+            print(desc)
+
+
 def is_authorized():
     try:
         ee.Initialize()
@@ -197,5 +231,6 @@ def is_authorized():
 
 
 if __name__ == '__main__':
-    pass
+    d = '/media/research/IrrigationGIS/et-demands/gridmet/gridmet_corrected/correction_surfaces_wgs'
+    export_openet_correction_surfaces(d)
 # ========================= EOF ====================================================================
