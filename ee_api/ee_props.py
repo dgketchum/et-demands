@@ -40,11 +40,7 @@ def get_cdl(fields, desc):
 
 def get_irrigation(fields, desc, debug=False):
     plots = ee.FeatureCollection(fields)
-
-    s, e = '1987-01-01', '2021-12-31'
-
     irr_coll = ee.ImageCollection(IRR)
-    remap = irr_coll.map(lambda img: img.lt(1))
 
     _selectors = ['FID', 'LAT', 'LON']
     first = True
@@ -88,10 +84,11 @@ def get_irrigation(fields, desc, debug=False):
 if __name__ == '__main__':
     ee.Initialize()
 
-    fields_ = 'users/dgketchum/fields/tongue_sample'
-    description = 'tongue_sample_irr'
-    # get_cdl(fields_, description)
-
+    project = 'flynn'
+    fields_ = 'users/dgketchum/fields/{}_sample'.format(project)
+    description = '{}_sample_cdl'.format(project)
+    get_cdl(fields_, description)
+    description = '{}_sample_irr'.format(project)
     get_irrigation(fields_, description, debug=False)
 
 # ========================= EOF ====================================================================

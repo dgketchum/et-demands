@@ -56,6 +56,5 @@ def run_fields(ini_path, debug_flag=False, field_type='irrigated', target_field=
 
 if __name__ == '__main__':
 
-    d = '/home/dgketchum/PycharmProjects/et-demands/examples/tongue/'
-    ini = os.path.join(d, 'tongue_example_cet_obs.ini')
+    ini = '/home/dgketchum/PycharmProjects/et-demands/examples/tongue/tongue_example_cet_obs.ini'
     run_fields(ini_path=ini, debug_flag=False, field_type='unirrigated')

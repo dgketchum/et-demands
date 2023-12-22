@@ -13,8 +13,6 @@ import pyproj
 from ee_api.ee_utils import is_authorized
 from gridmet_corrected.thredds import GridMet, BBox
 
-
-
 CLIMATE_COLS = {
     'etr': {
         'nc': 'agg_met_etr_1979_CurrentYear_CONUS',
@@ -74,9 +72,6 @@ COLUMN_ORDER = ['date',
                 'prcp_mm',
                 'etr_mm',
                 'eto_mm']
-
-
-
 
 
 def corrected_gridmet(fields, gridmet_points, fields_join, gridmet_csv_dir, gridmet_ras,

@@ -1,8 +1,8 @@
 #!/bin/bash
 src_epsg="EPSG:4326"
 dst_epsg="EPSG:5071"
-input_directory="/home/dgketchum/PycharmProjects/et-demands/gridmet_corrected/correction_surfaces_wgs"
-output_directory="/home/dgketchum/PycharmProjects/et-demands/gridmet_corrected/gridmet_surfaces_aea"
+input_directory="/media/research/IrrigationGIS/et-demands/gridmet/gridmet_corrected/correction_surfaces_wgs"
+output_directory="/media/research/IrrigationGIS/et-demands/gridmet/gridmet_corrected/gridmet_surfaces_aea"
 
 # Create the output directory if it doesn't exist
 mkdir -p "$output_directory"

@@ -70,7 +70,7 @@ if __name__ == '__main__':
                                                               [-106.63372199162623, 46.235698473362476]]),
                                          {'key': 'Flynn_Ex'}))
 
-    for mask in ['irr', 'inv_irr']:
-        for year in list(range(1987, 2021)):
+    for mask in ['inv_irr']:
+        for year in list(range(2015, 2021)):
             export_etf(fc, year, bucket_, debug=False, mask_type=mask)
             pass
