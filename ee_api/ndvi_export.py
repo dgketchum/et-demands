@@ -64,7 +64,7 @@ def export_ndvi(feature_coll, year=2015, bucket=None, debug=False, mask_type='ir
 
         task = ee.batch.Export.image.toCloudStorage(
             img,
-            description='NDVI_{}'.format(_name),
+            description='NDVI_{}_{}'.format(mask_type, _name),
             bucket=bucket,
             region=feature_coll.geometry(),
             crs='EPSG:5070',
@@ -85,11 +85,11 @@ if __name__ == '__main__':
                                                               [-106.63372199162623, 46.235698473362476]]),
                                          {'key': 'Flynn_Ex'}))
 
-    types_ = ['inv_irr']
+    types_ = ['irr']
 
     for mask_type in types_:
 
-        for y in [x for x in range(2015, 2021)]:
+        for y in [x for x in range(1987, 2021)]:
             export_ndvi(fc, y, bucket_, debug=False, mask_type=mask_type)
             pass
 # ========================= EOF ====================================================================
