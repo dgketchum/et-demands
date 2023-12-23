@@ -16,11 +16,11 @@ dct = {'aw': [100.0, 1000.0]}
 
 
 def intitialize_field(ini_path, fid, field_type='irrigated'):
-    metadata = obs_crop_et_data.ObsFieldETData(field_type=field_type)
+    metadata = obs_crop_et_data.ProjectConfig(field_type=field_type)
     metadata.read_cet_ini(ini_path)
     metadata.set_crop_params()
-    cells = obs_et_cell.ObsETCellData()
-    cells.set_cell_properties(metadata)
+    cells = obs_et_cell.ProjectFields()
+    cells.initialize_field_data(metadata)
     cells.set_cell_cuttings_irrigation(metadata)
     cells.set_field_crops(metadata)
     cells.set_static_crop_params(metadata.crop_params)

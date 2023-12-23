@@ -5,7 +5,7 @@ import pandas as pd
 
 
 class ProjectFields:
-    """A Container for historical and static field information
+    """A Container for input time series, historical, and static field information
 
     This should include some initial estimate of soil properties and historical
     estimate of irrigated status and crop type.
@@ -37,10 +37,16 @@ class ProjectFields:
 
 
 class FieldData:
+    """ A container for individual field information
+
+    This should include input time series information, initial estimate of soil properties,
+    and estimates of historical state (e.g., crop type and irrigation status).
+
+    """
     def __init__(self):
         super().__init__()
         self.props = None
-        self.refet_df = None
+        self.refet = None
         self.crop_coeffs = None
         self.field_id = None
         self.field_id = None
@@ -50,28 +56,16 @@ class FieldData:
         self.input = None
 
     def set_input_timeseries(self, config):
-        """Wrapper for setting all refet and met data
-
-        Parameters
-        ---------
-        cell_count : int
-            count of et cell being processed
-        data : dict
-            configuration data from INI file
-        cells : dict
-            eT cells data
-
-        Returns
-        -------
-        : boolean
-            True
-            False
-
-        """
-
         f = config.input_timeseries.format(self.field_id)
         df = pd.read_csv(f, parse_dates=True, index_col=0)
+        df['doy'] = [int(dt.strftime('%j')) for dt in df.index]
         self.input = df
+        if config.field_type == 'irrigateed':
+            self.refet = df['{}_mm'.format(config.refet_type)]
+        elif config.field_type == 'unirrigated':
+            self.refet = df['{}_mm_uncorr'.format(config.refet_type)]
+        else:
+            raise NotImplementedError('Uknown field type')
 
     def set_field_properties(self, config):
         f = config.field_properties

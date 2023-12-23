@@ -1,21 +1,17 @@
 """initialize_crop_cycle.py
 Defines InitializeCropCycle class
 Called by crop_cycle.py
-
 """
 
-import logging
 import numpy as np
-import sys
 
-# from modCropET.vb
-
-de_initial = 10.0  # mm initial depletion for first day of crop
+de_initial = 10.0
 
 
 class InitializeObsCropCycle:
     def __init__(self):
         """Initialize for crops cycle"""
+        self.crop_df = None
         self.ad = 0.
         self.aw = 0
         self.aw3 = 0.
@@ -84,6 +80,9 @@ class InitializeObsCropCycle:
         self.zr_max = 0.
         self.z = 0.
 
+        #TODO add invoke stess as a tunable parameter
+        self.invoke_stress = 0.7
+
         # CGM - I don't remember why these are grouped separately
         # Maybe because they are "flags"
 
@@ -96,6 +95,12 @@ class InitializeObsCropCycle:
         self.in_season = False  # false if outside season, true if inside
         self.dormant_setup_flag = False
         self.crop_setup_flag = True  # flag to setup crop parameter information
+
+        # dgketchum hacks to remove crop-type dependence
+        self.height_initial = 0.1
+        self.height_max = 2.0
+        self.height_min = 0.1
+        self.height = self.height_initial
 
         # TP - Looks like its value comes from compute_crop_et(),
         # but needed for setup_dormant() below...
@@ -128,27 +133,8 @@ class InitializeObsCropCycle:
 
         self.irr_min = 10.
 
-        # CGM - Code to write a cutting review file is not currently implemented
-        # self.cutting = np.zeros(20, dtype=np.int)
 
-        # TP - Not initialized in VB code, probably should be initialized to 0
-        # self.T2Days = 0
-
-        # CGM - It doesn't seem like these need to be initialized?
-        # self.e = 0.
-        # self.tei = 0
-        # self.Kcmult = 1
-        # self.irr_manual = 0
-        # self.irr_real = 0
-        # self.irr_special = 0
-        # self.ei = 0
-        # self.ep = 0
-        # self.few = 0
-        # self.kr = 0
-        # self.kt_prop = 1
-        # self.ze = 0.
-
-    def crop_load(self, data, et_cell, crop):
+    def crop_load(self, et_cell):
         """Assign characteristics for crop from crop Arrays
         Parameters
         ---------
@@ -170,10 +156,10 @@ class InitializeObsCropCycle:
 
         """
 
-        self.height_min = crop.height_initial
-        self.height_max = crop.height_max
-        self.zr_min = crop.rooting_depth_initial
-        self.zr_max = crop.rooting_depth_max
+        self.height_min = 0.1
+        self.height_max = 2.0
+        self.zr_min = 0.1
+        self.zr_max = 1.7
 
         self.depl_ze = de_initial  # (10 mm) at start of new crop at beginning of time
         self.depl_root = de_initial  # (20 mm) at start of new crop at beginning of time
@@ -187,25 +173,8 @@ class InitializeObsCropCycle:
 
         self.kc_bas_mid = 0.
 
-        # Bare soil 44, mulched soil 45, dormant turf/sod (winter) 46 do not have curve
-
-        if crop.curve_number > 0:
-            self.kc_bas_mid = np.nanmax(et_cell.crop_coeffs[1].data['NDVI_IRR'].values * 1.25)
-
         # Available water in soil
-
-        self.aw = et_cell.stn_whc / 12 * 1000.  # in/ft to mm/m
-        self.mad_ini = crop.mad_initial
-        self.mad_mid = crop.mad_midseason
-
-        # Setup curve number for antecedent II condition
-
-        if et_cell.stn_hydrogroup == 1:
-            self.cn2 = crop.cn_coarse_soil
-        elif et_cell.stn_hydrogroup == 2:
-            self.cn2 = crop.cn_medium_soil
-        elif et_cell.stn_hydrogroup == 3:
-            self.cn2 = crop.cn_fine_soil
+        self.aw = et_cell.props['stn_whc'] / 12 * 1000.  # in/ft to mm/m
 
         # Estimate readily evaporable water and total evaporable water from WHC
         # REW is from regression of REW vs. AW from FAO-56 soils table
@@ -223,114 +192,10 @@ class InitializeObsCropCycle:
         self.tew2 = self.tew  # TEW2Array(ctCount)
         self.tew3 = self.tew  # TEW3Array(ctCount) '(no severely cracking clays in Idaho)
         self.kr2 = 0  # Kr2Array(ctCount)'(no severely cracking clays in Idaho)
-        self.fw_std = crop.crop_fw  # fwarray(ctCount)
 
-        # Irrigation flag
-        # CGM - How are these different?
-        # For flag=1 or 2, turn irrigation on for a generally 'irrigated' region
-        # For flag=3, turn irrigation on for specific irrigated crops even in non-irrigated region
-        # Added Jan 2007 to force grain and turf irrigation in rainfed region
+        self.setup_crop()
 
-        # Now setting irrigaiton flag explicitly in ObsFieldETData() instantiation
-        # if crop.irrigation_flag >= 1:
-        #     self.irr_flag = True  # turn irrigation on for a generally 'irrigated' region
-        # Either no irrigations for this crop or station or
-        #      irrigation off even in irrigated region if this crop has no flag
-        # else:
-        #     self.irr_flag = False  # no irrigations for this crop or station
-
-        # CGM - Original code for setting irrigation flag
-        # DLK - one is by crop in crop parameters; other is by crop in by et cell
-        # self.irr_flag = False  # no irrigations for this crop or station
-        # if crop.irrigation_flag > 0:
-        #     self.irr_flag = True  # turn irrigation on for a generally 'irrigated' region
-        # if crop.irrigation_flag < 1:
-        #     self.irr_flag = False  # turn irrigation off even in irrigated region if this crop has no flag
-        # if crop.irrigation_flag > 2:   # added Jan 2007 to force grain and turf irrigation in rainfed region
-        #     self.irr_flag = True  # turn irrigation on for specific irrigated crops even in nonirrigated region if this crop has flag=3
-
-        # Pre-compute parameters instead of re-computing them daily
-
-        # Flag_for_means_to_estimate_pl_or_gu Case 1
-
-        if crop.flag_for_means_to_estimate_pl_or_gu == 1:
-            if data.phenology_option == 0:
-                cgdd_col = 'main_cgdd_0_lt'
-            elif data.phenology_option == 1:  # annual crops only
-                if crop.is_annual:
-                    cgdd_col = 'hist_cgdd_0_lt'
-                else:
-                    cgdd_col = 'main_cgdd_0_lt'
-            elif data.phenology_option == 2:  # perennial crops only
-                if not crop.is_annual:
-                    cgdd_col = 'hist_cgdd_0_lt'
-                else:
-                    cgdd_col = 'main_cgdd_0_lt'
-            else:  # both annual and perennial
-                cgdd_col = 'hist_cgdd_0_lt'
-            try:
-                self.longterm_pl = int(np.where(np.diff(np.array(
-                    et_cell.climate[cgdd_col] > crop.t30_for_pl_or_gu_or_cgdd,
-                    dtype=np.int8)) > 0)[0][0]) + 1
-            except:
-                logging.error(
-                    ('  initialize_crop_cycle():\n  Crop: {0:2d}, CellID: {1}\n' +
-                     '  Error computing longterm_pl, CGDD (LT) didn\'t go above threshold ({2})\n' +
-                     '  Setting longerm_pl = 0').format(
-                        crop.class_number, et_cell.cell_id,
-                        crop.t30_for_pl_or_gu_or_cgdd))
-                self.longterm_pl = 0
-
-        # Flag_for_means_to_estimate_pl_or_gu Case 2
-
-        elif crop.flag_for_means_to_estimate_pl_or_gu == 2:
-            if data.phenology_option == 0:
-                t30_col = 'main_t30_lt'
-            elif data.phenology_option == 1:  # annual crops only
-                if crop.is_annual:
-                    t30_col = 'hist_t30_lt'
-                else:
-                    t30_col = 'main_t30_lt'
-            elif data.phenology_option == 2:  # perennial crops only
-                if not crop.is_annual:
-                    t30_col = 'hist_t30_lt'
-                else:
-                    t30_col = 'main_t30_lt'
-            else:  # both annual and perennial
-                t30_col = 'hist_t30_lt'
-            try:
-                # print(int(np.where(np.diff(np.array(
-                #     et_cell.climate[t30_col] > crop.t30_for_pl_or_gu_or_cgdd,
-                #     dtype = np.int8)) > 0)[0][0]) + 1)
-
-                # This logic fails when the T30 never goes below t30_for_pl_or_gu_or_cgdd
-                # Report wrong error message
-                self.longterm_pl = int(np.where(np.diff(np.array(
-                    et_cell.climate[t30_col] > crop.t30_for_pl_or_gu_or_cgdd,
-                    dtype=np.int8)) > 0)[0][0]) + 1
-
-            except IndexError:
-                self.longterm_pl = 0
-                logging.error(
-                    ('  initialize_crop_cycle(): \n  Crop: {0:2d}, CellID: {1}\n' +
-                     '  Error computing longterm_pl, T30 (LT) didn\'t go above threshold ({2})\n' +
-                     '  Setting longerm_pl = 0').format(
-                        crop.class_number, et_cell.cell_id,
-                        crop.t30_for_pl_or_gu_or_cgdd))
-                logging.info('  Station long term T30:')
-                logging.info(et_cell.climate['main_t30_lt'])
-                self.longterm_pl = 0
-            except:
-                self.longterm_pl = 0
-                logging.error(
-                    ('  initialize_crop_cycle():\n' +
-                     '  Crop: {0:2d}, CellID: {1}\n' +
-                     '  Unknown error computing longterm_pl\n' +
-                     '  Setting longerm_pl = 0').format(
-                        crop.class_number, et_cell.cell_id))
-        self.setup_crop(crop)
-
-    def setup_crop(self, crop):
+    def setup_crop(self):
         """Initialize some variables for beginning of crop seasons
 
         Attributes
@@ -357,10 +222,6 @@ class InitializeObsCropCycle:
         # thus only setup 1st time for crop (not each year)
         # also called from kcb_daily each time GU/Plant date is reached, thus at growing season start
 
-        self.height_min = crop.height_initial
-        self.height_max = crop.height_max
-        self.zr_min = crop.rooting_depth_initial
-        self.zr_max = crop.rooting_depth_max
         self.height = self.height_min
         self.tew = self.tew2  # find total evaporable water
         if self.tew < self.tew3:
@@ -523,7 +384,7 @@ class InitializeObsCropCycle:
             if zr_dormant > ze:
                 totwatinzr_dormant = (
                     (self.totwatin_ze + aw_root * (zr_dormant - ze)) * (1 - self.fc) +
-                    aw_root * zr_dormant * fc)
+                    aw_root * zr_dormant * self.fc)
             else:
                 # Was, until 5/9/07
                 # totwatinzr_dormant = (
@@ -576,8 +437,6 @@ class InitializeObsCropCycle:
         self.irr_sim = 0
         self.dormant_setup_flag = False
 
-        # Clear cutting flag (just in case)
-
         self.cutting = 0
 
     def setup_dataframe(self, et_cell):
@@ -596,7 +455,7 @@ class InitializeObsCropCycle:
 
         """
 
-        self.crop_df = et_cell.refet_df[['doy', 'etref']].copy()
+        self.crop_df = et_cell.input[['year', 'month', 'day', 'doy']].copy()
         self.crop_df['et_act'] = np.nan
         self.crop_df['et_pot'] = np.nan
         self.crop_df['et_bas'] = np.nan
@@ -608,28 +467,3 @@ class InitializeObsCropCycle:
         self.crop_df['niwr'] = np.nan
         self.crop_df['season'] = 0
         self.crop_df['cutting'] = 0
-
-    def setup_co2(self, et_cell, crop):
-        """Get the CO2 correction factor dataframe for the target cell/crop
-
-        Attributes
-        ----------
-        et_cell :
-
-        crop :
-
-
-        Returns
-        -------
-
-        Notes
-        -----
-
-        """
-        if crop.co2_type == 'GRASS':
-            self.co2 = et_cell.climate_df['co2_grass']
-        elif crop.co2_type == 'TREE':
-            self.co2 = et_cell.climate_df['co2_tree']
-        elif crop.co2_type == 'C4':
-            self.co2 = et_cell.climate_df['co2_c4']
-        return True

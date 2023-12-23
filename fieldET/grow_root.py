@@ -11,7 +11,7 @@ import datetime
 import numpy as np
 
 
-def grow_root(crop, foo, foo_day, debug_flag=False):
+def grow_root(foo, foo_day, debug_flag=False):
     """Determine depth of root zone
     Parameters
     ----------

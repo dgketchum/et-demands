@@ -9,17 +9,19 @@ import logging
 import math
 import sys
 
+import numpy as np
+
 from fieldET import grow_root
 from fieldET import util
 from fieldET import runoff
 
 
-def compute_field_et(data, et_cell, crop, foo, foo_day, debug_flag=False):
+def compute_field_et(config, et_cell, foo, foo_day, debug_flag=False):
     """Crop et computations
 
         Parameters
         ---------
-        data :
+        config :
 
         et_cell :
 
@@ -43,11 +45,7 @@ def compute_field_et(data, et_cell, crop, foo, foo_day, debug_flag=False):
 
         """
 
-    # Don't compute cropET for open water
-    # open_water_evap() was called in kcb_daily()
 
-    if crop.class_number in [55, 56, 57]:
-        return
 
     # Maximum Kc when soil is wet.  For grass reference, kc_max = 1.2 plus climatic adj.
     # For alfalfa reference, kc_max = 1.0, with no climatic adj.
@@ -61,123 +59,38 @@ def compute_field_et(data, et_cell, crop, foo, foo_day, debug_flag=False):
     # Limit height for numerical stability
 
     foo.height = max(0.05, foo.height)
-    if data.refet['type'] == 'eto':
-        kc_max = ((0.04 * (foo_day.u2 - 2) - 0.004 * (foo_day.rh_min - 45)) *
-                  (foo.height / 3) ** 0.3)
-        if crop.kc_max > 0.3:
-            kc_max += crop.kc_max
-        else:
-            kc_max += 1.2
-    elif data.refet['type'] == 'etr':  # edited by Allen, 6/8/09 to use kc_max from file if given
-        if crop.kc_max > 0.3:
-            kc_max = crop.kc_max
-        else:
-            kc_max = 1.0
-    else:
-        sys.exit()
-
-    wscc = crop.winter_surface_cover_class
 
     dt_string = '{}-{:02d}-{:02d}'.format(foo_day.year, foo_day.month, foo_day.day)
-    if foo_day.year in et_cell.fallow_years or data.field_type == 'unirrigated':
-        ndvi_src = '{}_NO_IRR'.format(data.kc_proxy)
-    else:
-        ndvi_src = '{}_IRR'.format(data.kc_proxy)
 
-    foo.ndvi = et_cell.crop_coeffs[1].data.loc[dt_string, ndvi_src]
+    if et_cell.props['irr'][str(foo_day.year)] < 0.5:
+        fallow = True
+    else:
+        fallow = False
+
+    if fallow or config.field_type == 'unirrigated':
+        kc_proxy = '{}_NO_IRR'.format(config.kc_proxy)
+    else:
+        kc_proxy = '{}_IRR'.format(config.kc_proxy)
+
+    foo.ndvi = et_cell.input.loc[dt_string, kc_proxy]
     foo.fc = foo.ndvi_alpha * foo.ndvi + foo.ndvi_beta
 
-    if util.is_winter(et_cell, foo_day):
-        if crop.class_number not in [44, 45, 46]:
-            # Note that these are ETr based.  (Allen 12/2007)
-            # Multiply by 1.2 (plus adj?) for ETo base
-
-            if wscc == 1:
-                # bare soil
-                # foo.fc is calculated below
-
-                if data.refet['type'] == 'eto':
-                    kc_max = 1.1
-                elif data.refet['type'] == 'etr':
-                    kc_max = 0.9
-            elif wscc == 2:
-                # Mulched soil, including grain stubble
-
-                if data.refet['type'] == 'eto':
-                    kc_max = 1.0
-                elif data.refet['type'] == 'etr':
-                    kc_max = 0.85
-            elif wscc == 3:
-                # Dormant turf/sod (winter time)
-
-                if data.refet['type'] == 'eto':
-                    kc_max = 0.95
-                elif data.refet['type'] == 'etr':
-                    kc_max = 0.8
-        elif crop.class_number == 44:
-            # Bare soil
-            # Less soil heat in winter.
-
-            if data.refet['type'] == 'eto':
-                # For ETo  (Allen 12/2007)
-
-                kc_max = 1.1
-            elif data.refet['type'] == 'etr':
-                # For ETr (Allen 3/2008)
-
-                kc_max = 0.9
-            foo.fc = 0.0
-        elif crop.class_number == 45:
-            # Mulched soil, including grain stubble
-
-            if data.refet['type'] == 'eto':
-                # For ETo (0.85 * 1.2)  (Allen 12/2007)
-
-                kc_max = 1.0
-            elif data.refet['type'] == 'etr':
-                # For ETr (Allen 3/2008)
-
-                kc_max = 0.85
-            foo.fc = 0.4
-        elif crop.class_number == 46:
-            # Dormant turf/sod (winter time)
-
-            if data.refet['type'] == 'eto':
-                # For ETo (0.8 * 1.2)  (Allen 12/2007)
-
-                kc_max = 0.95
-            elif data.refet['type'] == 'etr':
-                # For ETr (Allen 3/2008)
-
-                kc_max = 0.8
-            # Was 0.6
-
-            foo.fc = 0.7
-
-    kc_max = max(kc_max, foo.kc_bas + 0.05)
+    kc_max = max(foo.kc_max, foo.kc_bas + 0.05)
 
     # Use same value for both ETr or ETo bases.
 
     foo.kc_min = 0.1
+    foo.kc_bas = max(foo.kc_min, foo.kc_bas)
 
     # Estimate height of vegetation for estimating fraction of ground cover
     #   for evaporation and fraction of ground covered by vegetation
 
-    if crop.class_number not in [44, 45, 46]:
-        if kc_max <= foo.kc_min:
-            kc_max = foo.kc_min + 0.001
-        if foo.in_season:
-            if foo.kc_bas > foo.kc_min:
-                # heightcalc  #'call to heightcalc was moved to top of this subroutine 12/26/07 by Allen
-                foo.fc = ((foo.kc_bas - foo.kc_min) / (kc_max - foo.kc_min)) ** (1 + 0.5 * foo.height)
-                # limit so that few > 0
-                foo.fc = min(foo.fc, 0.99)
-            else:
-                foo.fc = 0.001
-    if debug_flag:
-        logging.debug(
-            'compute_crop_et(): kc_max %.6f  kc_min %.6f  kc_bas %.6f  in_season %d' % (
-                kc_max, foo.kc_min, foo.kc_bas, foo.in_season))
+    # heightcalc  #'call to heightcalc was moved to top of this subroutine 12/26/07 by Allen
+    foo.fc = ((foo.kc_bas - foo.kc_min) / (kc_max - foo.kc_min)) ** (1 + 0.5 * foo.height)
+    # limit so that few > 0
+    foo.fc = min(foo.fc, 0.99)
+    if np.isnan(foo.fc):
+        raise ValueError
 
     # Estimate infiltrating precipitation
 
@@ -186,22 +99,12 @@ def compute_field_et(data, et_cell, crop, foo, foo_day, debug_flag=False):
     foo.ppt_inf_prev = foo.ppt_inf
     foo.ppt_inf = 0.0
     foo.sro = 0.0
+
     if foo_day.precip > 0:
         # Compute weighted depletion of surface from irr and precip areas
-
         foo.depl_surface = foo.wt_irr * foo.depl_ze + (1 - foo.wt_irr) * foo.depl_zep
         runoff.runoff(foo, foo_day, debug_flag)
         foo.ppt_inf = foo_day.precip - foo.sro
-    if debug_flag:
-        logging.debug(
-            ('compute_crop_et(): ppt_inf_prev %.6f  ppt_inf %.6f  SRO %.6f  precip %.6f') %
-            (foo.ppt_inf_prev, foo.ppt_inf, foo.sro, foo_day.precip))
-        logging.debug(
-            ('compute_crop_et(): depl_surface %.6f  wt_irr %.6f') %
-            (foo.depl_surface, foo.wt_irr))
-        logging.debug(
-            ('compute_crop_et(): depl_ze %.6f  depl_zep %.6f') %
-            (foo.depl_ze, foo.depl_zep))
 
     # Compare precipitation and irrigation to determine value for fw
 
@@ -255,7 +158,9 @@ def compute_field_et(data, et_cell, crop, foo, foo_day, debug_flag=False):
     few = 1 - foo.fc
 
     # Limit to fraction wetted by irrigation
-    few = min(max(few, 0.001), foo.fw_irr)
+    # dgketchum limit this to irrigated field type
+    if config.field_type == 'irrigated':
+        few = min(max(few, 0.001), foo.fw_irr)
 
     # Fraction of ground that is exposed and wet by precip beyond irrigation
 
@@ -266,19 +171,6 @@ def compute_field_et(data, et_cell, crop, foo, foo_day, debug_flag=False):
     # (corrected)
 
     foo.totwatin_ze = (watin_ze * few + watin_zep * fewp) / (few + fewp)
-    if debug_flag:
-        logging.debug('compute_crop_et(): TEW %.6f  depl_ze %.6f  watin_ze %.6f' % (
-            foo.tew, foo.depl_ze, watin_ze))
-        logging.debug('compute_crop_et(): TEW %.6f  depl_zep %.6f  watin_zep %.6f' % (
-            foo.tew, foo.depl_zep, watin_zep))
-        logging.debug(
-            ('compute_crop_et(): fw_irr %.6f stn_whc %.6f  AW %.6f  TEW %.6f') %
-            (foo.fw_irr, et_cell.stn_whc, foo.aw, foo.tew))
-        logging.debug('compute_crop_et(): depl_zep %.6f  depl_ze %.6f' % (foo.depl_zep, foo.depl_ze))
-        logging.debug('compute_crop_et(): watin_ze %.6f  few %.6f' % (watin_ze, few))
-        logging.debug(
-            ('compute_crop_et(): watin_zep %.6f  fewp %.6f  totwatin_ze %.6f') %
-            (watin_zep, fewp, foo.totwatin_ze))
 
     # tew is total evaporable water (end of 2nd or 3rd stage)
     # rew is readily evaporable water (end of stage 1)
@@ -317,7 +209,6 @@ def compute_field_et(data, et_cell, crop, foo, foo_day, debug_flag=False):
 
     if foo.fw_irr > 0.0001:
         # fw changed to fw_irr 8/10/06
-
         foo.depl_ze = foo.depl_ze - foo.ppt_inf - foo.irr_sim / foo.fw_irr + dperc_ze
     else:
         # fw changed to fw_irr 8/10/06
@@ -332,9 +223,6 @@ def compute_field_et(data, et_cell, crop, foo, foo_day, debug_flag=False):
 
     foo.depl_zep = foo.depl_zep - foo.ppt_inf + depl_zep_prev
     foo.depl_zep = min(max(foo.depl_zep, 0), foo.tew)
-    logging.debug(
-        ('compute_crop_et(): depl_ze %.6f  depl_zep %.6f') %
-        (foo.depl_ze, foo.depl_zep))
 
     # reducer coefficient for evaporation based on moisture left
     # This is set up for three stage evaporation
@@ -349,7 +237,8 @@ def compute_field_et(data, et_cell, crop, foo, foo_day, debug_flag=False):
     # for a noncracking clay loam soil, REW=8 mm, TEW2=50 mm, TEW3=0, Kr2=0
     # make sure that Kr2 is 0 if TEW3=0
 
-    if foo.tew3 < 0.1: foo.kr2 = 0.0
+    if foo.tew3 < 0.1:
+        foo.kr2 = 0.0
 
     # De is depletion of evaporation layer, mm
 
@@ -363,9 +252,9 @@ def compute_field_et(data, et_cell, crop, foo, foo_day, debug_flag=False):
     tew3use = foo.tew3  # for stage 3 drying (cracking soils (not in Idaho))
     rew2use = foo.rew
     foo.etref_30 = max(0.1, foo.etref_30)  # mm/day  #'edited from ETr to ETref 12/26/2007
-    if data.refet['type'] == 'eto':
+    if config.refet_type == 'eto':
         etr_threshold = 5  # for ETo basis #'added March 26, 2008 RGA
-    elif data.refet['type'] == 'etr':
+    elif config.refet_type == 'etr':
         etr_threshold = 4  # for ETr basis
 
     # Use 30 day ETr, if less than 4 or 5 mm/d to reduce TEW
@@ -378,13 +267,7 @@ def compute_field_et(data, et_cell, crop, foo, foo_day, debug_flag=False):
             # Was 0.7 until 4/16/08
 
             rew2use = 0.8 * tew2use
-    if debug_flag:
-        logging.debug(
-            'compute_crop_et(): TEW2 %.6f  ETref30 %.6f  etr_threshold %.6f' %
-            (foo.tew2, foo.etref_30, etr_threshold))
-        logging.debug(
-            ('compute_crop_et(): tew2use %.6f  rew2use %.6f') %
-            (tew2use, rew2use))
+
     if foo.depl_ze <= rew2use:
         kr = 1
     else:
@@ -457,20 +340,6 @@ def compute_field_et(data, et_cell, crop, foo, foo_day, debug_flag=False):
     else:
         foo.ks = 1
 
-    # Check to see if stress flag is turned off.
-
-    if crop.invoke_stress < 1:
-        # no stress if flag = 0 #'used to be irrigtypeflag=2
-
-        foo.ks = 1
-    elif crop.invoke_stress == 1:
-        # Unrecoverable stress.  No greenup after this.
-
-        if foo.ks < 0.05 and foo.in_season and foo.kc_bas > 0.3:
-            foo.stress_event = True
-        if foo.stress_event:
-            foo.ks = 0.0
-
     # Calculate Kc during snow cover
 
     kc_mult = 1
@@ -496,6 +365,7 @@ def compute_field_et(data, et_cell, crop, foo, foo_day, debug_flag=False):
     # Make adjustment to kc_act
 
     foo.kc_act = kc_mult * foo.ks * foo.kc_bas + foo.ke
+
     foo.kc_pot = foo.kc_bas + foo.ke
 
     # ETref is defined (to ETo or ETr) in CropCycle sub #'Allen 12/26/2007
@@ -503,16 +373,6 @@ def compute_field_et(data, et_cell, crop, foo, foo_day, debug_flag=False):
     foo.etc_act = foo.kc_act * foo_day.etref
     foo.etc_pot = foo.kc_pot * foo_day.etref
     foo.etc_bas = foo.kc_bas * foo_day.etref
-    if debug_flag:
-        logging.debug(
-            ('compute_crop_et(): kc_mult %.6f  ke %.6f  ke_irr %.6f  ke_ppt %.6f') %
-            (kc_mult, foo.ke, ke_irr, ke_ppt))
-        logging.debug(
-            ('compute_crop_et(): kc_bas %.6f  kc_pot %.6f  kc_act %.6f') %
-            (foo.kc_bas, foo.kc_pot, foo.kc_act))
-        logging.debug(
-            ('compute_crop_et(): etc_bas %.6f  etc_pot %.6f  etc_act %.6f') %
-            (foo.etc_bas, foo.etc_pot, foo.etc_act))
 
     e = foo.ke * foo_day.etref
     e_irr = ke_irr * foo_day.etref
@@ -626,7 +486,7 @@ def compute_field_et(data, et_cell, crop, foo, foo_day, debug_flag=False):
             logging.warning(
                 ('Problem in keeping depl_ze water balance within TEW.' +
                  'depl_ze, TEW, e_irr, te_irr, e_factor = {} {} {} {} {}').format(
-                    depl_ze, tew, e_irr, te_irr, e_factor))
+                    foo.depl_ze, foo.tew, e_irr, te_irr, e_factor))
             return
     foo.depl_zep = depl_zep_prev + e_ppt / fewp + te_ppt
     foo.depl_zep = max(foo.depl_zep, 0)
@@ -646,7 +506,7 @@ def compute_field_et(data, et_cell, crop, foo, foo_day, debug_flag=False):
             logging.warning(
                 ('Problem in keeping De water balance within TEW.  ' +
                  'De, TEW, E_irr, te_irr, e_factor = {} {} {} {} {}').format(
-                    depl_ze, tew, e_irr, te_irr, e_factor))
+                    foo.depl_ze, foo.tew, e_irr, te_irr, e_factor))
             return
 
     # Recomputed these based on corrections above if depl_ze > TEW  2/21/08
@@ -738,38 +598,16 @@ def compute_field_et(data, et_cell, crop, foo, foo_day, debug_flag=False):
     irr_sim_prev = foo.irr_sim
     foo.irr_sim = 0.0
 
-    if data.field_type == 'irrigated':
+    if config.field_type == 'irrigated':
+        if foo_day.year in et_cell.irrigation_data.keys():
+            irr_days = et_cell.irrigation_data[foo_day.year]['irr_doys']
+        else:
+            irr_days = []
 
-        if foo.obs_flag:
-            if foo_day.year in et_cell.irrigation_data.keys():
-                irr_days = et_cell.irrigation_data[foo_day.year]['irr_doys']
-            else:
-                irr_days = []
-
-            # TODO setup calibration for these critical parameters (i.e., Kcb and NDVI-based irr_doy formulation)
-            if (foo_day.doy in irr_days or foo.kc_bas > 0.7) and foo.depl_root > raw:
-                foo.irr_sim = foo.depl_root
-                foo.irr_sim = max(foo.irr_sim, foo.irr_min)
-
-        elif not foo.obs_flag:
-            doy_to_start_irr = foo.doy_start_cycle + crop.days_after_planting_irrigation
-            if doy_to_start_irr > 365:
-                doy_to_start_irr -= 365
-
-            # Following code was added and changed to prevent winter irrigations of winter grain. dlk 08/15/2012
-
-            crop_doy = foo_day.doy - foo.doy_start_cycle + 1
-            if crop_doy < 1:
-                crop_doy += 365
-            if (crop_doy >= crop.days_after_planting_irrigation and
-                foo_day.doy >= doy_to_start_irr and foo.in_season and
-                foo.depl_root > raw and foo.kc_bas > 0.22):
-                # No premature end for irrigations is used for Idaho CU comps.
-                # Limit irrigation to periods when kc_bas > 0.22 to preclude
-                #   frequent irrigation during initial periods
-
-                foo.irr_sim = foo.depl_root
-                foo.irr_sim = max(foo.irr_sim, foo.irr_min)
+        # TODO setup calibration for these critical parameters (i.e., Kcb and NDVI-based irr_doy formulation)
+        if (foo_day.doy in irr_days or foo.kc_bas > 0.7) and foo.depl_root > raw:
+            foo.irr_sim = foo.depl_root
+            foo.irr_sim = max(foo.irr_sim, foo.irr_min)
 
     # Update depletion ofroot zone
 
@@ -819,7 +657,7 @@ def compute_field_et(data, et_cell, crop, foo, foo_day, debug_flag=False):
     # since there is no irrigation, but no stress either
     # (i.e., wetlands, cottonwoods, etc.)  (Nuts!)
 
-    if crop.invoke_stress > 0.5 and foo.depl_root > taw:
+    if foo.invoke_stress > 0.5 and foo.depl_root > taw:
         # Since we overshot, then just give remaining water to etc_act
 
         foo.etc_act -= (foo.depl_root - taw)
@@ -931,4 +769,4 @@ def compute_field_et(data, et_cell, crop, foo, foo_day, debug_flag=False):
 
     # Get setup for next time step.
     # if foo.in_season:
-    grow_root.grow_root(crop, foo, foo_day, debug_flag)
+    grow_root.grow_root(foo, foo_day, debug_flag)

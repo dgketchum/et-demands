@@ -26,7 +26,7 @@ def get_cdl(fields, desc):
                                 reducer=ee.Reducer.mode(),
                                 scale=30)
 
-    out_ = '{}_cdl'.format(desc)
+    out_ = '{}'.format(desc)
     task = ee.batch.Export.table.toCloudStorage(
         modes,
         description=out_,
@@ -84,11 +84,11 @@ def get_irrigation(fields, desc, debug=False):
 if __name__ == '__main__':
     ee.Initialize()
 
-    project = 'flynn'
+    project = 'tongue'
     fields_ = 'users/dgketchum/fields/{}_sample'.format(project)
     description = '{}_sample_cdl'.format(project)
     get_cdl(fields_, description)
     description = '{}_sample_irr'.format(project)
-    get_irrigation(fields_, description, debug=False)
+    # get_irrigation(fields_, description, debug=False)
 
 # ========================= EOF ====================================================================

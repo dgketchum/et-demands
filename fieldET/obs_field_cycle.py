@@ -34,16 +34,16 @@ class DayData:
         self.etref_array = np.zeros(30)
 
 
-def field_day_loop(data, et_cell, debug_flag=False, return_df=False):
+def field_day_loop(config, field, debug_flag=False, return_df=False):
     """Compute crop et for each daily timestep at a field
 
     Parameters
     ---------
     crop_count : int
         count of crop being computed
-    data :
+    config :
 
-    et_cell : str
+    field : str
 
     crop :
 
@@ -67,26 +67,19 @@ def field_day_loop(data, et_cell, debug_flag=False, return_df=False):
     """
 
     func_str = 'field_day_loop()'
-    crop = et_cell.crop_params[1]
-    if debug_flag:
-        logging.debug(
-            '{}:  Curve {} {}  Class {}'.format(
-                func_str, crop.curve_number, crop.curve_name,
-                crop.class_number))
-        logging.debug('  GDD trigger DOY: {}'.format(crop.gdd_trigger_doy))
 
     # 'foo' is holder of all these global variables for now
     foo = InitializeObsCropCycle()
 
     # First time through for crop, load basic crop parameters and
     # process climate data
-    foo.crop_load(data, et_cell, crop)
+    foo.crop_load(field)
 
     # apply calibration parameter updates here
-    if data.calibration:
+    if config.calibration:
         # PEST++ hacking
 
-        for k, f in data.calibration_files.items():
+        for k, f in config.calibration_files.items():
 
             v = pd.read_csv(f, index_col=None, header=0)
 
@@ -97,17 +90,13 @@ def field_day_loop(data, et_cell, debug_flag=False, return_df=False):
             foo.__setattr__(k, value)
             print('{}: {:.1f}'.format(k, value))
             if k == 'aw':
-                foo.__setattr__('depl_root', foo.aw)
+                foo.__setattr__('depl_root', foo.aw / 4)
             if k == 'rew':
-                foo.__setattr__('depl_surface', foo.tew)
-                foo.__setattr__('depl_zep', foo.rew)
-
-    # GetCO2 correction factors for each crop
-    if data.co2_flag:
-        foo.setup_co2(et_cell, crop)
+                foo.__setattr__('depl_surface', foo.tew / 4)
+                foo.__setattr__('depl_zep', foo.rew / 4)
 
     # Initialize crop data frame
-    foo.setup_dataframe(et_cell)
+    foo.setup_dataframe(field)
     foo_day = DayData()
     foo_day.sdays = 0
     foo_day.doy_prev = 0
@@ -123,32 +112,9 @@ def field_day_loop(data, et_cell, debug_flag=False, return_df=False):
         # if step_dt.year != 2012:
         #     continue
 
-        if debug_flag:
-            logging.debug(
-                '\n{}: DOY {}  Date {}'.format(
-                    func_str, int(step_doy), step_dt.date()))
-
-            # Log RefET values at time step
-            logging.debug((
-                '{}: PPT {:.6f}  Wind {:.6f}  ' +
-                'Tdew {:.6f} ETref {:.6f}').format(
-                func_str, et_cell.climate_df.at[step_dt, 'ppt'],
-                et_cell.climate_df.at[step_dt, 'wind'],
-                et_cell.climate_df.at[step_dt, 'tdew'],
-                et_cell.refet_df.at[step_dt, 'etref']))
-
-            # Log climate values at time step
-            logging.debug((
-                '{}: tmax {:.6f}  tmin {:.6f}  ' +
-                'tmean {:.6f}  t30 {:.6f}').format(
-                func_str, et_cell.climate_df.at[step_dt, 'tmax'],
-                et_cell.climate_df.at[step_dt, 'tmin'],
-                et_cell.climate_df.at[step_dt, 'tmean'],
-                et_cell.climate_df.at[step_dt, 't30']))
-
         # End of season for each crop, set up for non-growing and dormant season
         if not foo.in_season and foo.dormant_setup_flag:
-            foo.setup_dormant(et_cell, crop)
+            foo.setup_dormant(field, crop)
         if debug_flag:
             logging.debug(
                 '{}: in_season[{}]  crop_setup[{}]  dormant_setup[{}]'.format(
@@ -163,36 +129,28 @@ def field_day_loop(data, et_cell, debug_flag=False, return_df=False):
         foo_day.month = int(step_dt.month)
         foo_day.day = int(step_dt.day)
         foo_day.date = step_dt
-        foo_day.tdew = float(et_cell.climate_df.at[step_dt, 'tdew'])
-        foo_day.u2 = float(et_cell.climate_df.at[step_dt, 'wind'])
-        foo_day.precip = float(et_cell.climate_df.at[step_dt, 'ppt'])
-        foo_day.rh_min = float(et_cell.climate_df.at[step_dt, 'rh_min'])
-        foo_day.etref = float(et_cell.climate_df.at[step_dt, 'etref'])
-        foo_day.snow_depth = float(et_cell.climate_df.at[step_dt, 'snow_depth'])
-        foo_day.tmean = float(et_cell.climate_df.at[step_dt, 'tmean'])
-        foo_day.tmin = float(et_cell.climate_df.at[step_dt, 'tmin'])
-        foo_day.tmax = float(et_cell.climate_df.at[step_dt, 'tmax'])
-        foo_day.t30 = float(et_cell.climate_df.at[step_dt, 't30'])
-
-        # Get CO2 correction factor for each day
-        if data.co2_flag:
-            foo_day.co2 = float(foo.co2.at[step_dt])
+        foo_day.etref = float(field.refet.at[step_dt])
+        foo_day.precip = float(field.input.at[step_dt, 'prcp_mm'])
+        foo_day.snow_depth = 0.0
 
         # Calculate height of vegetation.
         # Moved up to this point 12/26/07 for use in adj. Kcb and kc_max
-        calculate_height.calculate_height(crop, foo, debug_flag)
+        calculate_height.calculate_height(foo)
 
         # Interpolate Kcb and make climate adjustment (for ETo basis)
-        obs_kcb_daily.kcb_daily(data, et_cell, crop, foo, foo_day, debug_flag)
+        obs_kcb_daily.kcb_daily(config, field, foo, foo_day)
+
+        if foo_day.doy == 87:
+            pass
 
         # Calculate Kcb, Ke, ETc
-        compute_field_et.compute_field_et(data, et_cell, crop, foo, foo_day,
+        compute_field_et.compute_field_et(config, field, foo, foo_day,
                                           debug_flag)
 
         # Retrieve values from foo_day and write to output data frame
         # Eventually let compute_crop_et() write directly to output df
         foo.crop_df.at[step_dt, 'et_act'] = foo.etc_act
-        foo.crop_df.at[step_dt, 'etref'] = et_cell.refet_df.at[step_dt, data.refet['fnspec']]
+        foo.crop_df.at[step_dt, 'etref'] = field.refet.at[step_dt]
         foo.crop_df.at[step_dt, 'et_bas'] = foo.etc_bas
         foo.crop_df.at[step_dt, 'kc_act'] = foo.kc_act
         foo.crop_df.at[step_dt, 'kc_bas'] = foo.kc_bas
@@ -212,8 +170,7 @@ def field_day_loop(data, et_cell, debug_flag=False, return_df=False):
         foo.crop_df.at[step_dt, 'cutting'] = int(foo.cutting)
 
         # Write final output file variables to DEBUG file
-        if foo_day.doy == 270:
-            pass
+
 
     if return_df:
         foo.crop_df = foo.crop_df[['et_act',
@@ -238,11 +195,11 @@ def field_day_loop(data, et_cell, debug_flag=False, return_df=False):
         return foo.crop_df
 
     # Write output files
-    if (data.cet_out['daily_output_flag'] or
-        data.cet_out['monthly_output_flag'] or
-        data.cet_out['annual_output_flag'] or
-        data.gs_output_flag):
-        write_crop_output(data, et_cell, crop, foo)
+    if (config.cet_out['daily_output_flag'] or
+        config.cet_out['monthly_output_flag'] or
+        config.cet_out['annual_output_flag'] or
+        config.gs_output_flag):
+        write_crop_output(config, field, crop, foo)
     return True
 
 
@@ -482,7 +439,7 @@ def write_crop_output(data, et_cell, crop, foo):
         daily_output_path = os.path.join(
             data.cet_out['daily_output_ws'],
             data.cet_out['name_format'].replace(
-                '%c', '%02d' % int(crop.class_number)) % et_cell.cell_id)
+                '%c', '%02d' % int(crop.class_number)) % et_cell.field_id)
 
         # Set output column order
         daily_output_columns = base_columns + [year_field, month_field,
@@ -533,7 +490,7 @@ def write_crop_output(data, et_cell, crop, foo):
         monthly_output_path = os.path.join(
             data.cet_out['monthly_output_ws'],
             data.cet_out['name_format'].replace(
-                '%c', '%02d' % int(crop.class_number)) % et_cell.cell_id)
+                '%c', '%02d' % int(crop.class_number)) % et_cell.field_id)
         monthly_output_columns = base_columns + [year_field, month_field,
                                                  pmet_field, etact_field,
                                                  etpot_field, etbas_field,
@@ -565,7 +522,7 @@ def write_crop_output(data, et_cell, crop, foo):
         annual_output_path = os.path.join(
             data.cet_out['annual_output_ws'],
             data.cet_out['name_format'].replace(
-                '%c', '%02d' % int(crop.class_number)) % et_cell.cell_id)
+                '%c', '%02d' % int(crop.class_number)) % et_cell.field_id)
         annual_output_columns = base_columns + [year_field, pmet_field,
                                                 etact_field, etpot_field,
                                                 etbas_field, kc_field,
@@ -613,12 +570,12 @@ def write_crop_output(data, et_cell, crop, foo):
             # default filename spec
             gs_output_path = os.path.join(
                 data.gs_output_ws, '{0}_gs_crop_{1:02d}.csv'.format(
-                    et_cell.cell_id, int(crop.class_number)))
+                    et_cell.field_id, int(crop.class_number)))
         else:
             # user filename spec or function of cet name spec
             gs_output_path = os.path.join(
                 data.gs_output_ws, data.gs_name_format.replace(
-                    '%c', '%02d' % int(crop.class_number)) % et_cell.cell_id)
+                    '%c', '%02d' % int(crop.class_number)) % et_cell.field_id)
         gs_output_columns = [
             year_field, gs_start_doy_field, gs_end_doy_field,
             gs_start_date_field, gs_end_date_field, gs_length_field]
@@ -637,7 +594,7 @@ def write_crop_output(data, et_cell, crop, foo):
             if gs_start_doy is np.nan:
                 logging.info('\nSkipping Growing Season Output for'
                              ' Cell ID: {} Crop: {:02d}'
-                             .format(et_cell.cell_id, int(crop.class_number)))
+                             .format(et_cell.field_id, int(crop.class_number)))
                 return
             gs_start_dt = datetime.datetime.strptime(
                 '2001_{:03d}'.format(gs_start_doy), '%Y_%j')

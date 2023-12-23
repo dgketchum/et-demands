@@ -1,37 +1,32 @@
 import os
 import time
-import logging
 
 import numpy as np
 import pandas as pd
 
-from fieldET import obs_field_cycle
 from fieldET import obs_crop_et_data
 from fieldET import obs_et_cell
+from fieldET import obs_field_cycle
 
 
-def run_fields(ini_path, debug_flag=False, field_type='irrigated', target_field='2100'):
+def run_fields(ini_path, debug_flag=False, field_type='irrigated', target_field='1178'):
 
-    data = obs_crop_et_data.ObsFieldETData(field_type=field_type)
-    data.read_cet_ini(ini_path, debug_flag)
-    data.set_crop_params()
-    cells = obs_et_cell.ObsETCellData()
-    cells.set_cell_properties(data)
-    cells.set_cell_cuttings_irrigation(data)
-    cells.set_field_crops(data)
-    cells.set_static_crop_params(data.crop_params)
+    config = obs_crop_et_data.ProjectConfig(field_type=field_type)
+    config.read_cet_ini(ini_path, debug_flag)
+
+    fields = obs_et_cell.ProjectFields()
+    fields.initialize_field_data(config)
 
     cell_count = 0
-    for cell_id, cell in sorted(cells.et_cells_dict.items()):
+    for fid, field in sorted(fields.fields_dict.items()):
 
-        if cell_id != target_field:
+        if fid != target_field:
             continue
 
         cell_count += 1
 
-        cell.set_input_timeseries(cell_count, data, cells)
         start_time = time.time()
-        df = obs_field_cycle.field_day_loop(data, cell, debug_flag=debug_flag, return_df=True)
+        df = obs_field_cycle.field_day_loop(config, field, debug_flag=debug_flag, return_df=True)
         pred = df['et_act'].values
 
         np.savetxt(os.path.join(d, 'pest', 'eta.np'), pred)
@@ -55,6 +50,7 @@ def run_fields(ini_path, debug_flag=False, field_type='irrigated', target_field=
 
 
 if __name__ == '__main__':
-
-    ini = '/home/dgketchum/PycharmProjects/et-demands/examples/tongue/tongue_example_cet_obs.ini'
-    run_fields(ini_path=ini, debug_flag=False, field_type='unirrigated')
+    target = '1778'
+    d = '/home/dgketchum/PycharmProjects/et-demands/examples/tongue'
+    ini = os.path.join(d, 'tongue_example_cet_obs.ini')
+    run_fields(ini_path=ini, debug_flag=False, field_type='unirrigated', target_field=target)
