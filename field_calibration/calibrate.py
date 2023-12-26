@@ -58,7 +58,7 @@ if __name__ == '__main__':
 
     obs_file = os.path.join(d, 'landsat/field_daily/{}_daily.csv'.format(field_id))
     data = pd.read_csv(obs_file, index_col=0, parse_dates=True, infer_datetime_format=True)
-    data['eta'] = data['etr_mm'] * data['ETF_NO_IRR']
+    data['eta'] = data['etr_mm'] * data['etf_inv_irr']
     data = data[['eta']]
     data[data.values <= 0] = np.nan
     data.dropna(inplace=True)

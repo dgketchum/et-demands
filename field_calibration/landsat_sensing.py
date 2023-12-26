@@ -25,7 +25,7 @@ def landsat_time_series(in_shp, tif_dir, years, out_csv):
             stats = zonal_stats(in_shp, f, stats=['mean'], nodata=0.0, categorical=False, all_touched=False)
             stats = [x['mean'] if isinstance(x['mean'], float) else np.nan for x in stats]
             df.loc[dt, :] = stats
-            df.loc[dt, :] /= 1000
+            df.loc[dt, :] /= 10000
 
         df = df.astype(float).interpolate()
         df = df.interpolate(method='bfill')

@@ -90,10 +90,10 @@ def field_day_loop(config, field, debug_flag=False, return_df=False):
             foo.__setattr__(k, value)
             print('{}: {:.1f}'.format(k, value))
             if k == 'aw':
-                foo.__setattr__('depl_root', foo.aw / 4)
+                foo.__setattr__('depl_root',0.0)
             if k == 'rew':
-                foo.__setattr__('depl_surface', foo.tew / 4)
-                foo.__setattr__('depl_zep', foo.rew / 4)
+                foo.__setattr__('depl_surface', 0.0)
+                foo.__setattr__('depl_zep', 0.0)
 
     # Initialize crop data frame
     foo.setup_dataframe(field)
@@ -107,8 +107,8 @@ def field_day_loop(config, field, debug_flag=False, return_df=False):
 
     for step_dt, step_doy in foo.crop_df[['doy']].iterrows():
 
-        if not 2000 <= step_dt.year <= 2006:
-            continue
+        # if not 2000 <= step_dt.year <= 2006:
+        #     continue
         # if step_dt.year != 2012:
         #     continue
 
@@ -261,8 +261,8 @@ def write_crop_output(data, et_cell, crop, foo):
                      'ETbas',
                      'Kc',
                      'Kcb',
-                     'NDVI_IRR',
-                     'ETF_IRR'
+                     'ndvi_irr',
+                     'etf_irr'
                      'PPT',
                      'Irrigation',
                      'Runoff',
@@ -272,7 +272,7 @@ def write_crop_output(data, et_cell, crop, foo):
                      'Cutting',
                      'P_rz',
                      'P_eft',
-                     'NDVI_NO_IRR',
+                     'ndvi_inv_irr',
                      'Year']
 
     # Merge crop and weather data frames to form daily output

@@ -81,7 +81,7 @@ class InitializeObsCropCycle:
         self.z = 0.
 
         #TODO add invoke stess as a tunable parameter
-        self.invoke_stress = 0.7
+        self.invoke_stress = 0.9
 
         # CGM - I don't remember why these are grouped separately
         # Maybe because they are "flags"

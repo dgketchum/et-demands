@@ -43,9 +43,9 @@ def kcb_daily(config, et_cell, foo, foo_day):
 
     # if gs_start_doy < foo_day.doy < gs_end_doy:
     if config.field_type == 'unirrigated':
-        kc_src = '{}_NO_IRR'.format(config.kc_proxy)
+        kc_src = '{}_inv_irr'.format(config.kc_proxy)
     else:
-        kc_src = '{}_IRR'.format(config.kc_proxy)
+        kc_src = '{}_irr'.format(config.kc_proxy)
     dt_string = '{}-{:02d}-{:02d}'.format(foo_day.year, foo_day.month, foo_day.day)
     foo.kc_bas = et_cell.input.loc[dt_string, kc_src]
 

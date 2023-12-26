@@ -1,17 +1,18 @@
 import os
 
-import geopandas as gpd
+import numpy as np
 import pandas as pd
+import geopandas as gpd
 
 from gridmet_corrected.gridmet import corrected_gridmet
 
 
-def join_gridmet_remote_sensing_daily(fields, gridmet_dir, ndvi_masked, ndvi_unmasked, etf_masked, etf_unmasked,
+def join_gridmet_remote_sensing_daily(fields, gridmet_dir, landsat_table,
                                       dst_dir, overwrite=False, start_date=None, end_date=None):
 
-
-
-    start, end = ndvi_masked.index[0], ndvi_masked.index[-1]
+    lst = pd.read_csv(landsat_table, parse_dates=True, index_col=0)
+    start, end = lst.index[0], lst.index[-1]
+    params = set(['_'.join(x.split('_')[1:]) for x in lst.columns])
 
     fields = gpd.read_file(fields)
     fields.index = fields['FID']
@@ -25,10 +26,8 @@ def join_gridmet_remote_sensing_daily(fields, gridmet_dir, ndvi_masked, ndvi_unm
         gridmet_file = os.path.join(gridmet_dir, 'gridmet_historical_{}.csv'.format(int(row['GFID'])))
         gridmet = pd.read_csv(gridmet_file, index_col='date', parse_dates=True).loc[start: end]
 
-        gridmet.loc[ndvi_masked.index, 'NDVI_IRR'] = ndvi_masked[str(f)]
-        gridmet.loc[ndvi_unmasked.index, 'NDVI_NO_IRR'] = ndvi_unmasked[str(f)]
-        gridmet.loc[etf_masked.index, 'ETF_IRR'] = etf_masked[str(f)]
-        gridmet.loc[etf_unmasked.index, 'ETF_NO_IRR'] = etf_unmasked[str(f)]
+        for p in params:
+            gridmet.loc[lst.index, p] = lst['{}_{}'.format(f, p)]
 
         if start_date:
             gridmet = gridmet.loc[start_date:]
@@ -51,11 +50,11 @@ if __name__ == '__main__':
 
     fields_shp = os.path.join(project_ws, 'gis', '{}_fields_sample.shp'.format(project))
     fields_gridmet = os.path.join(project_ws, 'gis', '{}_fields_sample_gfid.shp'.format(project))
-    met = os.path.join(project_ws, 'timeseries')
-    corrected_gridmet(fields_shp, grimet_cent, fields_gridmet, met, rasters_, start='2015-01-01',
-                      end='2020-12-31')
+    met = os.path.join(project_ws, 'met_timeseries')
+    # corrected_gridmet(fields_shp, grimet_cent, fields_gridmet, met, rasters_, start='2015-01-01',
+    #                   end='2020-12-31')
 
-    landsat = os.path.join(d, 'landsat')
+    landsat = os.path.join(project_ws, 'landsat', '{}_sensing_sample.csv'.format(project))
     dst_dir_ = os.path.join(project_ws, 'input_timeseries')
     join_gridmet_remote_sensing_daily(fields_gridmet, met, landsat, dst_dir_, overwrite=True, start_date='2015-01-01',
                                       end_date='2020-12-31')

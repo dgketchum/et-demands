@@ -9,7 +9,7 @@ from fieldET import obs_et_cell
 from fieldET import obs_field_cycle
 
 
-def run_fields(ini_path, debug_flag=False, field_type='irrigated', target_field='1178'):
+def run_fields(ini_path, debug_flag=False, field_type='irrigated', target_field='1178', project='tongue'):
 
     config = obs_crop_et_data.ProjectConfig(field_type=field_type)
     config.read_cet_ini(ini_path, debug_flag)
@@ -27,11 +27,12 @@ def run_fields(ini_path, debug_flag=False, field_type='irrigated', target_field=
 
         start_time = time.time()
         df = obs_field_cycle.field_day_loop(config, field, debug_flag=debug_flag, return_df=True)
+        a = df.loc['2020-04-01': '2020-10-31']
         pred = df['et_act'].values
 
         np.savetxt(os.path.join(d, 'pest', 'eta.np'), pred)
 
-        obs = '/home/dgketchum/PycharmProjects/et-demands/examples/tongue/obs.np'
+        obs = '/home/dgketchum/PycharmProjects/et-demands/examples/{}/obs.np'.format(project)
         obs = np.loadtxt(obs)
         cols = ['et_obs'] + list(df.columns)
         df['et_obs'] = obs
@@ -50,7 +51,8 @@ def run_fields(ini_path, debug_flag=False, field_type='irrigated', target_field=
 
 
 if __name__ == '__main__':
-    target = '1778'
-    d = '/home/dgketchum/PycharmProjects/et-demands/examples/tongue'
-    ini = os.path.join(d, 'tongue_example_cet_obs.ini')
-    run_fields(ini_path=ini, debug_flag=False, field_type='unirrigated', target_field=target)
+    project = 'flynn'
+    target = '3'
+    d = '/home/dgketchum/PycharmProjects/et-demands/examples/{}'.format(project)
+    ini = os.path.join(d, '{}_example_cet_obs.ini'.format(project))
+    run_fields(ini_path=ini, debug_flag=False, field_type='unirrigated', target_field=target, project=project)

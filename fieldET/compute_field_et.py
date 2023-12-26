@@ -68,9 +68,9 @@ def compute_field_et(config, et_cell, foo, foo_day, debug_flag=False):
         fallow = False
 
     if fallow or config.field_type == 'unirrigated':
-        kc_proxy = '{}_NO_IRR'.format(config.kc_proxy)
+        kc_proxy = '{}_inv_irr'.format(config.kc_proxy)
     else:
-        kc_proxy = '{}_IRR'.format(config.kc_proxy)
+        kc_proxy = '{}_irr'.format(config.kc_proxy)
 
     foo.ndvi = et_cell.input.loc[dt_string, kc_proxy]
     foo.fc = foo.ndvi_alpha * foo.ndvi + foo.ndvi_beta
@@ -512,7 +512,8 @@ def compute_field_et(config, et_cell, foo, foo_day, debug_flag=False):
     # Recomputed these based on corrections above if depl_ze > TEW  2/21/08
 
     etref_divisor = foo_day.etref
-    if etref_divisor < 0.01: etref_divisor = 0.01
+    if etref_divisor < 0.01:
+        etref_divisor = 0.01
     ke_irr = e_irr / etref_divisor
     ke_ppt = e_ppt / etref_divisor
 
@@ -604,7 +605,7 @@ def compute_field_et(config, et_cell, foo, foo_day, debug_flag=False):
         else:
             irr_days = []
 
-        # TODO setup calibration for these critical parameters (i.e., Kcb and NDVI-based irr_doy formulation)
+        # TODO setup calibration for these parameters (i.e., Kcb and NDVI-based irr_doy formulation)
         if (foo_day.doy in irr_days or foo.kc_bas > 0.7) and foo.depl_root > raw:
             foo.irr_sim = foo.depl_root
             foo.irr_sim = max(foo.irr_sim, foo.irr_min)
