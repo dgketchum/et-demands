@@ -7,11 +7,11 @@ from rasterstats import zonal_stats
 from tqdm import tqdm
 
 
-def landsat_time_series(in_shp, tif_dir, years, out_csv):
+def landsat_time_series(in_shp, tif_dir, years, out_csv, min_ct=100):
     gdf = gpd.read_file(in_shp)
     gdf.index = gdf['FID']
 
-    adf, first = None, True
+    adf, ctdf, first = None, None, True
 
     for yr in years:
 
@@ -19,24 +19,32 @@ def landsat_time_series(in_shp, tif_dir, years, out_csv):
 
         dt_index = pd.date_range('{}-01-01'.format(yr), '{}-12-31'.format(yr), freq='D')
         df = pd.DataFrame(index=dt_index, columns=gdf.index)
+        ct = pd.DataFrame(index=dt_index, columns=gdf.index)
 
         print('\n', yr, len(file_list))
         for dt, f in tqdm(zip(dts, file_list), total=len(file_list)):
-            stats = zonal_stats(in_shp, f, stats=['mean'], nodata=0.0, categorical=False, all_touched=False)
-            stats = [x['mean'] if isinstance(x['mean'], float) else np.nan for x in stats]
+            stats = zonal_stats(in_shp, f, stats=['mean', 'count'], nodata=0.0, categorical=False, all_touched=False)
+            stats = [x['mean'] if isinstance(x['mean'], float) and x['count'] > min_ct else np.nan for x in stats]
             df.loc[dt, :] = stats
+            ct.loc[dt, :] = ~pd.isna(stats)
             df.loc[dt, :] /= 10000
 
         df = df.astype(float).interpolate()
         df = df.interpolate(method='bfill')
 
+        ct = ct.fillna(0)
+        ct = ct.astype(int)
+
         if first:
             adf = df.copy()
+            ctdf = ct.copy()
             first = False
         else:
             adf = pd.concat([adf, df], axis=0, ignore_index=False, sort=True)
+            ctdf = pd.concat([ctdf, ct], axis=0, ignore_index=False, sort=True)
 
     adf.to_csv(out_csv)
+    ctdf.to_csv(out_csv.replace('.csv', '_ct.csv'))
 
 
 def join_remote_sensing(_dir, dst):
