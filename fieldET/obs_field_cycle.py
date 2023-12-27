@@ -90,9 +90,9 @@ def field_day_loop(config, field, debug_flag=False, return_df=False):
             foo.__setattr__(k, value)
             print('{}: {:.1f}'.format(k, value))
             if k == 'aw':
-                foo.__setattr__('depl_root',0.0)
+                foo.__setattr__('depl_root', foo.aw)
             if k == 'rew':
-                foo.__setattr__('depl_surface', 0.0)
+                foo.__setattr__('depl_surface', foo.tew)
                 foo.__setattr__('depl_zep', 0.0)
 
     # Initialize crop data frame
@@ -133,6 +133,9 @@ def field_day_loop(config, field, debug_flag=False, return_df=False):
         foo_day.precip = float(field.input.at[step_dt, 'prcp_mm'])
         foo_day.snow_depth = 0.0
 
+        if foo_day.precip == 13.0:
+            a = 1
+
         # Calculate height of vegetation.
         # Moved up to this point 12/26/07 for use in adj. Kcb and kc_max
         calculate_height.calculate_height(foo)
@@ -140,20 +143,15 @@ def field_day_loop(config, field, debug_flag=False, return_df=False):
         # Interpolate Kcb and make climate adjustment (for ETo basis)
         obs_kcb_daily.kcb_daily(config, field, foo, foo_day)
 
-        if foo_day.doy == 87:
-            pass
-
         # Calculate Kcb, Ke, ETc
         compute_field_et.compute_field_et(config, field, foo, foo_day,
                                           debug_flag)
 
         # Retrieve values from foo_day and write to output data frame
         # Eventually let compute_crop_et() write directly to output df
-        foo.crop_df.at[step_dt, 'et_act'] = foo.etc_act
         foo.crop_df.at[step_dt, 'etref'] = field.refet.at[step_dt]
-        foo.crop_df.at[step_dt, 'et_bas'] = foo.etc_bas
+        foo.crop_df.at[step_dt, 'et_act'] = foo.etc_act
         foo.crop_df.at[step_dt, 'kc_act'] = foo.kc_act
-        foo.crop_df.at[step_dt, 'kc_bas'] = foo.kc_bas
         foo.crop_df.at[step_dt, 'ks'] = foo.ks
         foo.crop_df.at[step_dt, 'ke'] = foo.ke
         foo.crop_df.at[step_dt, 'ppt'] = foo_day.precip
@@ -161,21 +159,26 @@ def field_day_loop(config, field, debug_flag=False, return_df=False):
         foo.crop_df.at[step_dt, 'depl_surface'] = foo.depl_surface
         foo.crop_df.at[step_dt, 'p_rz'] = foo.p_rz
         foo.crop_df.at[step_dt, 'p_eft'] = foo.p_eft
+
+        foo.crop_df.at[step_dt, 'fc'] = foo.fc
+        foo.crop_df.at[step_dt, 'few'] = foo.few
+        foo.crop_df.at[step_dt, 'aw3'] = foo.aw3
+
         foo.crop_df.at[step_dt, 'irrigation'] = foo.irr_sim
         foo.crop_df.at[step_dt, 'runoff'] = foo.sro
         foo.crop_df.at[step_dt, 'dperc'] = foo.dperc
         foo.crop_df.at[step_dt, 'zr'] = foo.zr
+        foo.crop_df.at[step_dt, 'kc_bas'] = foo.kc_bas
         foo.crop_df.at[step_dt, 'niwr'] = foo.niwr + 0
+        foo.crop_df.at[step_dt, 'et_bas'] = foo.etc_bas
         foo.crop_df.at[step_dt, 'season'] = int(foo.in_season)
         foo.crop_df.at[step_dt, 'cutting'] = int(foo.cutting)
 
         # Write final output file variables to DEBUG file
 
-
     if return_df:
         foo.crop_df = foo.crop_df[['et_act',
                                    'etref',
-                                   'et_bas',
                                    'kc_act',
                                    'kc_bas',
                                    'ks',
@@ -183,7 +186,10 @@ def field_day_loop(config, field, debug_flag=False, return_df=False):
                                    'ppt',
                                    'depl_root',
                                    'depl_surface',
+                                   'fc',
+                                   'few',
                                    'zr',
+                                   'aw3',
                                    'dperc',
                                    'p_rz',
                                    'p_eft',
@@ -191,7 +197,10 @@ def field_day_loop(config, field, debug_flag=False, return_df=False):
                                    'irrigation',
                                    'runoff',
                                    'season',
-                                   'cutting']]
+                                   'cutting',
+                                   'et_bas',
+
+                                   ]]
         return foo.crop_df
 
     # Write output files

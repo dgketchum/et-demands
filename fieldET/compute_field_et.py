@@ -17,35 +17,6 @@ from fieldET import runoff
 
 
 def compute_field_et(config, et_cell, foo, foo_day, debug_flag=False):
-    """Crop et computations
-
-        Parameters
-        ---------
-        config :
-
-        et_cell :
-
-        crop :
-
-        foo :
-
-        foo_day :
-
-        debug_flag : boolean
-            True : write debug level comments to debug.txt
-            False
-
-        Returns
-        -------
-        None
-
-        Notes
-        -----
-        See comments in code
-
-        """
-
-
 
     # Maximum Kc when soil is wet.  For grass reference, kc_max = 1.2 plus climatic adj.
     # For alfalfa reference, kc_max = 1.0, with no climatic adj.
@@ -155,22 +126,22 @@ def compute_field_et(config, et_cell, foo, foo_day, debug_flag=False):
 
     # Fraction of ground that is both exposed and wet
 
-    few = 1 - foo.fc
+    foo.few = 1 - foo.fc
 
     # Limit to fraction wetted by irrigation
     # dgketchum limit this to irrigated field type
     if config.field_type == 'irrigated':
-        few = min(max(few, 0.001), foo.fw_irr)
+        foo.few = min(max(foo.few, 0.001), foo.fw_irr)
 
     # Fraction of ground that is exposed and wet by precip beyond irrigation
 
-    fewp = 1 - foo.fc - few
-    fewp = max(fewp, 0.001)
+    foo.fewp = 1 - foo.fc - foo.few
+    foo.fewp = max(foo.fewp, 0.001)
 
     # Was "totwatin_ze = watin_ze * few + watin_zep * fewp" until 5/9/07
     # (corrected)
 
-    foo.totwatin_ze = (watin_ze * few + watin_zep * fewp) / (few + fewp)
+    foo.totwatin_ze = (watin_ze * foo.few + watin_zep * foo.fewp) / (foo.few + foo.fewp)
 
     # tew is total evaporable water (end of 2nd or 3rd stage)
     # rew is readily evaporable water (end of stage 1)
@@ -299,10 +270,10 @@ def compute_field_et(config, et_cell, foo, foo_day, debug_flag=False):
 
     # following conditional added July 2006 for when denominator is zero
 
-    if (few * watin_ze + fewp * watin_zep) > 0.0001:
-        foo.wt_irr = few * watin_ze / (few * watin_ze + fewp * watin_zep)
+    if (foo.few * watin_ze + foo.fewp * watin_zep) > 0.0001:
+        foo.wt_irr = foo.few * watin_ze / (foo.few * watin_ze + foo.fewp * watin_zep)
     else:
-        foo.wt_irr = few * watin_ze
+        foo.wt_irr = foo.few * watin_ze
     foo.wt_irr = min(max(foo.wt_irr, 0), 1)
     if debug_flag:
         logging.debug('compute_crop_et(): wt_irr %.6f' % (foo.wt_irr))
@@ -316,9 +287,9 @@ def compute_field_et(config, et_cell, foo, foo_day, debug_flag=False):
 
     # Limit to maximum rate per unit surface area
 
-    ke_irr = min(max(ke_irr, 0), few * kc_max)
+    ke_irr = min(max(ke_irr, 0), foo.few * kc_max)
 
-    ke_ppt = min(max(ke_ppt, 0), fewp * kc_max)
+    ke_ppt = min(max(ke_ppt, 0), foo.fewp * kc_max)
 
     foo.ke = ke_irr + ke_ppt
 
@@ -335,6 +306,7 @@ def compute_field_et(config, et_cell, foo, foo_day, debug_flag=False):
     # Remember to check reset of AD and RAW each new crop season.  #####
     # AD is allowable depletion
 
+    # TODO: repurpose invoke stress?
     if foo.depl_root > raw:
         foo.ks = max((taw - foo.depl_root) / (taw - raw), 0)
     else:
@@ -414,7 +386,7 @@ def compute_field_et(config, et_cell, foo, foo_day, debug_flag=False):
 
     # few added, 8/2006, that is not in Allen et al., 2005, ASCE
 
-    kt_reducer = few * (1 - foo.depl_ze / tew2use) / kt_reducer_denom
+    kt_reducer = foo.few * (1 - foo.depl_ze / tew2use) / kt_reducer_denom
     kt_prop = kt_prop * kt_reducer
 
     # kt_reducer can be greater than 1
@@ -428,7 +400,7 @@ def compute_field_et(config, et_cell, foo, foo_day, debug_flag=False):
     # For precip wetted fraction beyond that irrigated
     # fewp added, 8/2006, that is not in Allen et al., 2005, ASCE
 
-    kt_reducer = fewp * (1 - foo.depl_zep / tew2use) / kt_reducer_denom
+    kt_reducer = foo.fewp * (1 - foo.depl_zep / tew2use) / kt_reducer_denom
     kt_prop = kt_prop * kt_reducer
 
     # kt_reducer can be greater than 1
@@ -461,7 +433,7 @@ def compute_field_et(config, et_cell, foo, foo_day, debug_flag=False):
     # finish water balance of Ze evaporation layer
     # (ptt_inf, irr and dperc_ze were subtracted or added earlier)
 
-    foo.depl_ze = depl_ze_prev + e_irr / few + te_irr
+    foo.depl_ze = depl_ze_prev + e_irr / foo.few + te_irr
     logging.debug('compute_crop_et(): depl_ze %.6f' % (foo.depl_ze))
 
     # This next section modified 2/21/08 to keep a days potential E from exceeding
@@ -480,7 +452,7 @@ def compute_field_et(config, et_cell, foo, foo_day, debug_flag=False):
         e_factor = min(max(e_factor, 0), 1)
         e_irr *= e_factor
         te_irr *= e_factor
-        foo.depl_ze = depl_ze_prev + e_irr / few + te_irr  # recalculate
+        foo.depl_ze = depl_ze_prev + e_irr / foo.few + te_irr  # recalculate
         logging.debug('compute_crop_et(): depl_ze %.6f' % (foo.depl_ze))
         if foo.depl_ze > foo.tew + 0.2:
             logging.warning(
@@ -488,7 +460,7 @@ def compute_field_et(config, et_cell, foo, foo_day, debug_flag=False):
                  'depl_ze, TEW, e_irr, te_irr, e_factor = {} {} {} {} {}').format(
                     foo.depl_ze, foo.tew, e_irr, te_irr, e_factor))
             return
-    foo.depl_zep = depl_zep_prev + e_ppt / fewp + te_ppt
+    foo.depl_zep = depl_zep_prev + e_ppt / foo.fewp + te_ppt
     foo.depl_zep = max(foo.depl_zep, 0)
 
     if foo.depl_zep > foo.tew:
@@ -501,7 +473,7 @@ def compute_field_et(config, et_cell, foo, foo_day, debug_flag=False):
         e_factor = min(max(e_factor, 0), 1)
         e_ppt *= e_factor
         te_ppt *= e_factor
-        foo.depl_zep = depl_zep_prev + e_ppt / fewp + te_ppt  # recalculate
+        foo.depl_zep = depl_zep_prev + e_ppt / foo.fewp + te_ppt  # recalculate
         if foo.depl_zep > foo.tew + 0.2:
             logging.warning(
                 ('Problem in keeping De water balance within TEW.  ' +

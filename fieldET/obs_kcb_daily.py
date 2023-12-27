@@ -46,8 +46,9 @@ def kcb_daily(config, et_cell, foo, foo_day):
         kc_src = '{}_inv_irr'.format(config.kc_proxy)
     else:
         kc_src = '{}_irr'.format(config.kc_proxy)
+
     dt_string = '{}-{:02d}-{:02d}'.format(foo_day.year, foo_day.month, foo_day.day)
-    foo.kc_bas = et_cell.input.loc[dt_string, kc_src]
+    foo.kc_bas = et_cell.input.loc[dt_string, kc_src] * foo.etf_coeff
 
     # Save kcb value for use tomorrow in case curve needs to be extended until frost
     # Save kc_bas_prev prior to CO2 adjustment to avoid double correction

@@ -27,7 +27,6 @@ def run_fields(ini_path, debug_flag=False, field_type='irrigated', target_field=
 
         start_time = time.time()
         df = obs_field_cycle.field_day_loop(config, field, debug_flag=debug_flag, return_df=True)
-        a = df.loc['2020-04-01': '2020-10-31']
         pred = df['et_act'].values
 
         np.savetxt(os.path.join(d, 'pest', 'eta.np'), pred)
@@ -37,6 +36,7 @@ def run_fields(ini_path, debug_flag=False, field_type='irrigated', target_field=
         cols = ['et_obs'] + list(df.columns)
         df['et_obs'] = obs
         df = df[cols]
+        a = df.loc['2016-01-01': '2021-01-01']
 
         comp = pd.DataFrame(data=np.vstack([obs, pred]).T, columns=['obs', 'pred'], index=df.index)
         comp['eq'] = comp['obs'] == comp['pred']
