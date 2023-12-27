@@ -17,6 +17,31 @@ from fieldET.initialize_obs_crop_cycle import InitializeObsCropCycle
 from fieldET import obs_kcb_daily
 from fieldET import calculate_height
 
+OUTPUT_FMT = ['et_act',
+              'etref',
+              'kc_act',
+              'kc_bas',
+              'ks',
+              'ke',
+              'ppt',
+              'depl_root',
+              'depl_surface',
+              'fc',
+              'few',
+              'zr',
+              'aw3',
+              'dperc',
+              'p_rz',
+              'p_eft',
+              'niwr',
+              'irrigation',
+              'runoff',
+              'season',
+              'cutting',
+              'et_bas',
+
+              ]
+
 
 class DayData:
     """Daily crop data container
@@ -91,12 +116,14 @@ def field_day_loop(config, field, debug_flag=False, return_df=False):
             print('{}: {:.1f}'.format(k, value))
             if k == 'aw':
                 foo.__setattr__('depl_root', foo.aw)
+
             if k == 'rew':
                 foo.__setattr__('depl_surface', foo.tew)
                 foo.__setattr__('depl_zep', 0.0)
 
     # Initialize crop data frame
-    foo.setup_dataframe(field)
+    foo.setup_dataframe(field, OUTPUT_FMT)
+    foo.set_kc_max(field)
     foo_day = DayData()
     foo_day.sdays = 0
     foo_day.doy_prev = 0
@@ -129,6 +156,7 @@ def field_day_loop(config, field, debug_flag=False, return_df=False):
         foo_day.month = int(step_dt.month)
         foo_day.day = int(step_dt.day)
         foo_day.date = step_dt
+        foo_day.dt_string = '{}-{:02d}-{:02d}'.format(foo_day.year, foo_day.month, foo_day.day)
         foo_day.etref = float(field.refet.at[step_dt])
         foo_day.precip = float(field.input.at[step_dt, 'prcp_mm'])
         foo_day.snow_depth = 0.0
@@ -177,30 +205,7 @@ def field_day_loop(config, field, debug_flag=False, return_df=False):
         # Write final output file variables to DEBUG file
 
     if return_df:
-        foo.crop_df = foo.crop_df[['et_act',
-                                   'etref',
-                                   'kc_act',
-                                   'kc_bas',
-                                   'ks',
-                                   'ke',
-                                   'ppt',
-                                   'depl_root',
-                                   'depl_surface',
-                                   'fc',
-                                   'few',
-                                   'zr',
-                                   'aw3',
-                                   'dperc',
-                                   'p_rz',
-                                   'p_eft',
-                                   'niwr',
-                                   'irrigation',
-                                   'runoff',
-                                   'season',
-                                   'cutting',
-                                   'et_bas',
-
-                                   ]]
+        foo.crop_df = foo.crop_df[OUTPUT_FMT]
         return foo.crop_df
 
     # Write output files

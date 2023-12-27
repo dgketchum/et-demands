@@ -11,6 +11,7 @@ de_initial = 10.0
 class InitializeObsCropCycle:
     def __init__(self):
         """Initialize for crops cycle"""
+        self.cover_proxy = None
         self.crop_df = None
         self.ad = 0.
         self.aw = 0
@@ -80,7 +81,7 @@ class InitializeObsCropCycle:
         self.zr_max = 0.
         self.z = 0.
 
-        #TODO add invoke stess as a tunable parameter
+        # TODO add invoke stess as a tunable parameter
         self.invoke_stress = 0.9
 
         # CGM - I don't remember why these are grouped separately
@@ -132,7 +133,6 @@ class InitializeObsCropCycle:
         # TP - Minimum net depth of application for germination irrigation, etc.
 
         self.irr_min = 10.
-
 
     def crop_load(self, et_cell):
         """Assign characteristics for crop from crop Arrays
@@ -439,7 +439,7 @@ class InitializeObsCropCycle:
 
         self.cutting = 0
 
-    def setup_dataframe(self, et_cell):
+    def setup_dataframe(self, et_cell, fmt):
         """Initialize output dataframe
 
         Attributes
@@ -467,3 +467,11 @@ class InitializeObsCropCycle:
         self.crop_df['niwr'] = np.nan
         self.crop_df['season'] = 0
         self.crop_df['cutting'] = 0
+        add_cols = [c for c in fmt if c not in self.crop_df.columns]
+        for c in add_cols:
+            self.crop_df[c] = np.nan
+
+    def set_kc_max(self, et_cell):
+
+        kc_array = et_cell.input[['etf_inv_irr', 'etf_irr']].quantile(0.9) * self.etf_coeff
+        self.kc_max = kc_array.max().item()

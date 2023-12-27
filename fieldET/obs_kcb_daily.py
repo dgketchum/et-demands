@@ -36,7 +36,8 @@ def kcb_daily(config, et_cell, foo, foo_day):
 
     # Set MAD to MADmid universally atstart.
     # Value will be changed later.  R.Allen 12/14/2011
-    foo.mad = foo.mad_mid
+    # dgetkchum remove this
+    # foo.mad = foo.mad_mid
 
     gs_start, gs_end = datetime.datetime(foo_day.year, 4, 1), datetime.datetime(foo_day.year, 10, 31)
     gs_start_doy, gs_end_doy = int(gs_start.strftime('%j')), int(gs_end.strftime('%j'))
@@ -47,8 +48,7 @@ def kcb_daily(config, et_cell, foo, foo_day):
     else:
         kc_src = '{}_irr'.format(config.kc_proxy)
 
-    dt_string = '{}-{:02d}-{:02d}'.format(foo_day.year, foo_day.month, foo_day.day)
-    foo.kc_bas = et_cell.input.loc[dt_string, kc_src] * foo.etf_coeff
+    foo.kc_bas = et_cell.input.loc[foo_day.dt_string, kc_src] * foo.etf_coeff
 
     # Save kcb value for use tomorrow in case curve needs to be extended until frost
     # Save kc_bas_prev prior to CO2 adjustment to avoid double correction

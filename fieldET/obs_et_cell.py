@@ -60,7 +60,7 @@ class FieldData:
         df = pd.read_csv(f, parse_dates=True, index_col=0)
         df['doy'] = [int(dt.strftime('%j')) for dt in df.index]
         self.input = df
-        if config.field_type == 'irrigateed':
+        if config.field_type == 'irrigated':
             self.refet = df['{}_mm'.format(config.refet_type)]
         elif config.field_type == 'unirrigated':
             self.refet = df['{}_mm_uncorr'.format(config.refet_type)]

@@ -31,7 +31,7 @@ def compute_field_et(config, et_cell, foo, foo_day, debug_flag=False):
 
     foo.height = max(0.05, foo.height)
 
-    dt_string = '{}-{:02d}-{:02d}'.format(foo_day.year, foo_day.month, foo_day.day)
+
 
     if et_cell.props['irr'][str(foo_day.year)] < 0.5:
         fallow = True
@@ -39,11 +39,11 @@ def compute_field_et(config, et_cell, foo, foo_day, debug_flag=False):
         fallow = False
 
     if fallow or config.field_type == 'unirrigated':
-        kc_proxy = '{}_inv_irr'.format(config.kc_proxy)
+        cover_proxy = '{}_inv_irr'.format(config.kc_proxy)
     else:
-        kc_proxy = '{}_irr'.format(config.kc_proxy)
+        cover_proxy = '{}_irr'.format(config.kc_proxy)
 
-    foo.ndvi = et_cell.input.loc[dt_string, kc_proxy]
+    foo.ndvi = et_cell.input.loc[foo_day.dt_string, cover_proxy]
     foo.fc = foo.ndvi_alpha * foo.ndvi + foo.ndvi_beta
 
     kc_max = max(foo.kc_max, foo.kc_bas + 0.05)
@@ -132,6 +132,8 @@ def compute_field_et(config, et_cell, foo, foo_day, debug_flag=False):
     # dgketchum limit this to irrigated field type
     if config.field_type == 'irrigated':
         foo.few = min(max(foo.few, 0.001), foo.fw_irr)
+    else:
+        foo.few = 0.
 
     # Fraction of ground that is exposed and wet by precip beyond irrigation
 
@@ -187,8 +189,10 @@ def compute_field_et(config, et_cell, foo, foo_day, debug_flag=False):
         foo.depl_ze = foo.depl_ze - foo.ppt_inf - foo.irr_sim / 1 + dperc_ze
 
     # Use TEW rather than TEW2use to conserve depl_ze
-
-    foo.depl_ze = min(max(foo.depl_ze, 0), foo.tew)
+    if config.field_type == 'unirrigated':
+        foo.depl_ze = 0.0
+    else:
+        foo.depl_ze = min(max(foo.depl_ze, 0), foo.tew)
 
     # Update depletion of few beyond that wetted by irrigation
 
@@ -300,15 +304,13 @@ def compute_field_et(config, et_cell, foo, foo_day, debug_flag=False):
 
     # MAD: Management Allowable Depletion
     # MAD is set to mad_ini or mad_mid in kcb_daily sub.
-
-    raw = foo.mad * taw / 100
+    foo.raw = foo.mad * taw
 
     # Remember to check reset of AD and RAW each new crop season.  #####
     # AD is allowable depletion
 
-    # TODO: repurpose invoke stress?
-    if foo.depl_root > raw:
-        foo.ks = max((taw - foo.depl_root) / (taw - raw), 0)
+    if foo.depl_root > foo.raw:
+        foo.ks = max((taw - foo.depl_root) / (taw - foo.raw), 0)
     else:
         foo.ks = 1
 
@@ -433,8 +435,9 @@ def compute_field_et(config, et_cell, foo, foo_day, debug_flag=False):
     # finish water balance of Ze evaporation layer
     # (ptt_inf, irr and dperc_ze were subtracted or added earlier)
 
-    foo.depl_ze = depl_ze_prev + e_irr / foo.few + te_irr
-    logging.debug('compute_crop_et(): depl_ze %.6f' % (foo.depl_ze))
+    if config.field_type == 'irrigated':
+        foo.depl_ze = depl_ze_prev + e_irr / foo.few + te_irr
+        logging.debug('compute_crop_et(): depl_ze %.6f' % (foo.depl_ze))
 
     # This next section modified 2/21/08 to keep a days potential E from exceeding
     # Evaporable water available (for coarse soils).  Allen and Huntington
@@ -578,7 +581,7 @@ def compute_field_et(config, et_cell, foo, foo_day, debug_flag=False):
             irr_days = []
 
         # TODO setup calibration for these parameters (i.e., Kcb and NDVI-based irr_doy formulation)
-        if (foo_day.doy in irr_days or foo.kc_bas > 0.7) and foo.depl_root > raw:
+        if (foo_day.doy in irr_days or foo.kc_bas > 0.7) and foo.depl_root > foo.raw:
             foo.irr_sim = foo.depl_root
             foo.irr_sim = max(foo.irr_sim, foo.irr_min)
 
