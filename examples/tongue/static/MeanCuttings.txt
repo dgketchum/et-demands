@@ -1,0 +1,28 @@
+This file contains first (temporary) numbers of cutting cycles for dairy and beef hay, based on latitude.  R.Allen 4/1/08						
+ET Cell ID	ET Cell Name	Lat	Number Dairy	Number Beef	null	null
+1	Tongue_1	  46.1334	3	3
+10	Tongue_10	  46.1645	3	3
+11	Tongue_11	  46.1657	3	3
+12	Tongue_12	  46.1760	3	3
+13	Tongue_13	  46.1692	3	3
+14	Tongue_14	  46.1711	3	3
+15	Tongue_15	  46.1783	3	3
+16	Tongue_16	  46.1839	3	3
+17	Tongue_17	  46.1776	3	3
+18	Tongue_18	  46.1833	3	3
+19	Tongue_19	  46.1794	3	3
+2	Tongue_2	  46.1406	3	3
+20	Tongue_20	  46.1889	3	3
+21	Tongue_21	  46.1718	3	3
+22	Tongue_22	  46.1812	3	3
+23	Tongue_23	  46.1791	3	3
+24	Tongue_24	  46.1774	3	3
+25	Tongue_25	  46.1837	3	3
+26	Tongue_26	  46.1861	3	3
+3	Tongue_3	  46.1490	3	3
+4	Tongue_4	  46.1452	3	3
+5	Tongue_5	  46.1499	3	3
+6	Tongue_6	  46.1526	3	3
+7	Tongue_7	  46.1565	3	3
+8	Tongue_8	  46.1550	3	3
+9	Tongue_9	  46.1607	3	3
