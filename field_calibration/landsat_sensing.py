@@ -1,13 +1,16 @@
 import os
+import json
 
-import geopandas as gpd
 import numpy as np
 import pandas as pd
-from rasterstats import zonal_stats
 from tqdm import tqdm
+import geopandas as gpd
+
+from rasterstats import zonal_stats
+from detecta import detect_cusum, detect_peaks, detect_onset
 
 
-def landsat_time_series(in_shp, tif_dir, years, out_csv, min_ct=100):
+def landsat_time_series(in_shp, tif_dir, years, out_csv, out_csv_ct, min_ct=100):
     gdf = gpd.read_file(in_shp)
     gdf.index = gdf['FID']
 
@@ -27,7 +30,7 @@ def landsat_time_series(in_shp, tif_dir, years, out_csv, min_ct=100):
             stats = [x['mean'] if isinstance(x['mean'], float) and x['count'] > min_ct else np.nan for x in stats]
             df.loc[dt, :] = stats
             ct.loc[dt, :] = ~pd.isna(stats)
-            df.loc[dt, :] /= 10000
+            df.loc[dt, :] /= 1000
 
         df = df.astype(float).interpolate()
         df = df.interpolate(method='bfill')
@@ -44,7 +47,7 @@ def landsat_time_series(in_shp, tif_dir, years, out_csv, min_ct=100):
             ctdf = pd.concat([ctdf, ct], axis=0, ignore_index=False, sort=True)
 
     adf.to_csv(out_csv)
-    ctdf.to_csv(out_csv.replace('.csv', '_ct.csv'))
+    ctdf.to_csv(out_csv_ct)
 
 
 def join_remote_sensing(_dir, dst):
@@ -54,18 +57,28 @@ def join_remote_sensing(_dir, dst):
               'ndvi_inv_irr',
               'etf_irr',
               'ndvi_irr']
+
+    params += ['{}_ct'.format(p) for p in params]
+
     for f in l:
-        param = [p for p in params if p in os.path.basename(f)][0]
+        param = [p for p in params if p in os.path.basename(f)]
+        if len(param) > 1:
+            param = param[1]
+        else:
+            param = param[0]
+
         if first:
             df = pd.read_csv(f, index_col=0, parse_dates=True)
             cols = ['{}_{}'.format(c, param) for c in df.columns]
             df.columns = cols
             first = False
+            print(param)
         else:
             csv = pd.read_csv(f, index_col=0, parse_dates=True)
             cols = ['{}_{}'.format(c, param) for c in csv.columns]
             csv.columns = cols
             df = pd.concat([csv, df], axis=1)
+            print(param)
 
     df.to_csv(dst)
 
@@ -81,10 +94,132 @@ def get_list_info(tif_dir, year):
     return l, dates_
 
 
+def detect_cuttings(landsat, irr_csv, out_json, irr_threshold=0.1):
+    lst = pd.read_csv(landsat, index_col=0, parse_dates=True)
+    cols = list(set([x.split('_')[0] for x in lst.columns]))
+    years = list(set([i.year for i in lst.index]))
+    irr = pd.read_csv(irr_csv, index_col=0)
+    irr.drop(columns=['LAT', 'LON'], inplace=True)
+
+    irrigated, fields = False, {c: {} for c in cols}
+    for c in cols:
+
+        selector = '{}_ndvi_irr'.format(c)
+        print('\n', c, selector)
+        count, fallow = [], []
+
+        for yr in years:
+
+            f_irr = irr.at[int(c), 'irr_{}'.format(yr)]
+            irrigated = f_irr > irr_threshold
+
+            if not irrigated:
+                fallow.append(yr)
+                continue
+
+            df = lst.loc['{}-01-01'.format(yr): '{}-12-31'.format(yr), [selector]]
+            diff = df.diff()
+
+            nan_ct = np.count_nonzero(np.isnan(df.values))
+            if nan_ct > 200:
+                print('{}: {} has {}/{} nan'.format(c, yr, nan_ct, df.values.size))
+                fallow.append(yr)
+                continue
+
+            vals = df.values
+
+            try:
+                peaks = detect_peaks(vals.flatten(), mph=0.500, mpd=30, threshold=0, valley=False,
+                                     show=False)
+
+                ta, tai, _, _ = detect_cusum(vals, threshold=0.100, ending=False, show=False,
+                                             drift=0.005)
+
+                onsets = detect_onset(vals, threshold=0.550, show=False)
+
+            except ValueError:
+                print('Error', yr, c)
+                continue
+
+            irr_doys = []
+            green_start_dates, cut_dates = [], []
+            green_start_doys, cut_doys = [], []
+            irr_dates, cut_dates, pk_dates = [], [], []
+
+            if irrigated:
+                for infl, green in zip(ta, tai):
+
+                    off_peak = False
+                    if np.all(~np.array([ons[0] < green < ons[1] for ons in onsets])):
+                        off_peak = True
+
+                    if not off_peak:
+                        continue
+
+                    sign = diff.loc[diff.index[green + 1]: diff.index[green + 10], selector].mean()
+
+                    if sign > 0:
+                        date = df.index[green]
+                        green_start_doys.append(date)
+                        dts = '{}-{:02d}-{:02d}'.format(date.year, date.month, date.day)
+                        green_start_dates.append(dts)
+
+                for pk in peaks:
+
+                    on_peak = False
+                    if np.any(np.array([ons[0] < pk < ons[1] for ons in onsets])):
+                        on_peak = True
+
+                    if on_peak:
+                        date = df.index[pk]
+                        cut_doys.append(date)
+                        dts = '{}-{:02d}-{:02d}'.format(date.year, date.month, date.day)
+                        cut_dates.append(dts)
+
+                irr_doys = [[i for i in range(s.dayofyear, e.dayofyear)] for s, e in zip(green_start_doys, cut_doys)]
+                irr_doys = list(np.array(irr_doys, dtype=object).flatten())
+                irr_windows = [(gu, cd) for gu, cd in zip(green_start_dates, cut_dates)]
+
+                if not irr_windows:
+                    # this dense code calculates the periods when NDVI is increasing
+                    roll = pd.DataFrame((diff.rolling(window=15).mean() > 0.0), columns=[selector])
+                    roll = roll.loc[[i for i in roll.index if 3 < i.month < 11]]
+                    roll['crossing'] = (roll[selector] != roll[selector].shift()).cumsum()
+                    roll['count'] = roll.groupby([selector, 'crossing']).cumcount(ascending=True)
+                    irr_doys = [i.dayofyear for i in roll[roll[selector]].index]
+                    roll = roll[(roll['count'] == 0 & roll[selector])]
+                    start_idx, end_idx = list(roll.loc[roll[selector] == 1].index), list(roll.loc[roll[selector] == 0].index)
+                    start_idx = ['{}-{:02d}-{:02d}'.format(d.year, d.month, d.day) for d in start_idx]
+                    end_idx = ['{}-{:02d}-{:02d}'.format(d.year, d.month, d.day) for d in end_idx]
+                    irr_windows = [(s, e) for s, e in zip(start_idx, end_idx)]
+
+            else:
+                irr_windows = []
+
+            count.append(len(pk_dates))
+
+            green_start_dates = list(np.unique(np.array(green_start_dates)))
+
+            fields[c][yr] = {'pk_count': len(pk_dates),
+                             'green_ups': green_start_dates,
+                             'cut_dates': cut_dates,
+                             'irr_windows': irr_windows,
+                             'irr_doys': irr_doys,
+                             'irrigated': int(irrigated),
+                             'f_irr': f_irr}
+
+        avg_ct = np.array(count).mean()
+        fields[c]['average_cuttings'] = float(avg_ct)
+        fields[c]['fallow_years'] = fallow
+
+    with open(out_json, 'w') as fp:
+        json.dump(fields, fp, indent=4)
+
+
 if __name__ == '__main__':
 
     d = '/media/research/IrrigationGIS/et-demands'
-    project = 'flynn'
+    project = 'tongue'
     project_ws = os.path.join(d, 'examples', project)
     tables = os.path.join(project_ws, 'landsat', 'tables')
 
@@ -94,7 +229,6 @@ if __name__ == '__main__':
     for mask_type in types_:
 
         for sensing_param in sensing_params:
-            print('{}_{}'.format(sensing_param, mask_type))
 
             yrs = [x for x in range(2015, 2021)]
             shp = os.path.join(project_ws, 'gis', '{}_fields_sample.shp'.format(project))
@@ -103,10 +237,15 @@ if __name__ == '__main__':
 
             tif = os.path.join(project_ws, 'landsat', sensing_param, mask_type)
             src = os.path.join(tables, '{}_{}_{}_sample.csv'.format(project, sensing_param, mask_type))
+            src_ct = os.path.join(tables, '{}_{}_{}_ct_sample.csv'.format(project, sensing_param, mask_type))
 
-            landsat_time_series(shp, tif, yrs, src)
+            # landsat_time_series(shp, tif, yrs, src, src_ct)
 
     dst_ = os.path.join(project_ws, 'landsat', '{}_sensing_sample.csv'.format(project))
-    join_remote_sensing(tables, dst_)
+    # join_remote_sensing(tables, dst_)
+
+    irr_ = os.path.join(project_ws, 'properties', '{}_sample_irr.csv'.format(project))
+    js_ = os.path.join(project_ws, 'landsat', '{}_cuttings.json'.format(project))
+    detect_cuttings(dst_, irr_, irr_threshold=0.1, out_json=js_)
 
 # ========================= EOF ================================================================================

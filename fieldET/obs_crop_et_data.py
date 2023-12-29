@@ -11,7 +11,6 @@ import os
 import pandas as pd
 
 
-
 class ProjectConfig:
     """Crop et data container
 
@@ -22,6 +21,8 @@ class ProjectConfig:
 
     def __init__(self, field_type='irrigated'):
         super().__init__()
+        self.cover_proxy = None
+        self.field_cuttings = None
         self.refet_type = None
         self.soils = None
         self.field_index = None
@@ -42,7 +43,6 @@ class ProjectConfig:
         self.field_properties = None
         self.input_timeseries = None
         self.fields_path = None
-
 
     def __str__(self):
         """ """
@@ -75,6 +75,7 @@ class ProjectConfig:
         calib_sec = 'CALIBRATION'
 
         self.kc_proxy = config.get(crop_et_sec, 'kc_proxy')
+        self.cover_proxy = config.get(crop_et_sec, 'cover_proxy')
 
         self.project_ws = config.get(crop_et_sec, 'project_folder')
         self.field_index = 'FID'
@@ -100,6 +101,8 @@ class ProjectConfig:
         self.fields_path = config.get(crop_et_sec, 'fields_path')
         self.field_properties = config.get(crop_et_sec, 'field_properties')
         self.input_timeseries = config.get(crop_et_sec, 'input_timeseries')
+        self.irrigation_data = config.get(crop_et_sec, 'irrigation_data')
+
         self.calibration = bool(config.get(calib_sec, 'calibrate_flag'))
 
         if self.calibration:

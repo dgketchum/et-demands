@@ -36,23 +36,25 @@ def run_fields(ini_path, debug_flag=False, field_type='irrigated', target_field=
         cols = ['et_obs'] + list(df.columns)
         df['et_obs'] = obs
         df = df[cols]
-        a = df.loc['2016-01-01': '2021-01-01']
+        a = df.loc['2019-01-01': '2021-01-01']
 
         comp = pd.DataFrame(data=np.vstack([obs, pred]).T, columns=['obs', 'pred'], index=df.index)
         comp['eq'] = comp['obs'] == comp['pred']
 
         rmse = np.sqrt(((pred - obs)**2).mean())
         end_time = time.time()
-        print('Execution time: {:.2f}'.format(end_time - start_time))
+        print('Execution time: {:.2f} seconds'.format(end_time - start_time))
         print('Mean Obs: {:.2f}, Mean Pred: {:.2f}'.format(obs.mean(), pred.mean()))
         print('RMSE: {:.4f}\n\n\n\n'.format(rmse))
-        # df = df.loc['2003-01-01': '2003-12-31']
         pass
 
 
 if __name__ == '__main__':
-    project = 'flynn'
-    target = '3'
+
+    # project = 'flynn'
+    project = 'tongue'
+    target = '1778'
+    field_type = 'irrigated'
     d = '/home/dgketchum/PycharmProjects/et-demands/examples/{}'.format(project)
     ini = os.path.join(d, '{}_example_cet_obs.ini'.format(project))
-    run_fields(ini_path=ini, debug_flag=False, field_type='unirrigated', target_field=target, project=project)
+    run_fields(ini_path=ini, debug_flag=False, field_type='irrigated', target_field=target, project=project)

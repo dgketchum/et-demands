@@ -41,7 +41,8 @@ def join_gridmet_remote_sensing_daily(fields, gridmet_dir, landsat_table,
 if __name__ == '__main__':
 
     d = '/media/research/IrrigationGIS/et-demands'
-    project = 'flynn'
+
+    project = 'tongue'
     project_ws = os.path.join(d, 'examples', project)
 
     gridmet = os.path.join(d, 'gridmet')

@@ -8,7 +8,6 @@ import datetime
 import logging
 
 
-
 def kcb_daily(config, et_cell, foo, foo_day):
     """Compute basal ET
 
@@ -45,10 +44,16 @@ def kcb_daily(config, et_cell, foo, foo_day):
     # if gs_start_doy < foo_day.doy < gs_end_doy:
     if config.field_type == 'unirrigated':
         kc_src = '{}_inv_irr'.format(config.kc_proxy)
+        capture_flag = '{}_{}'.format(kc_src, 'ct')
     else:
         kc_src = '{}_irr'.format(config.kc_proxy)
+        capture_flag = '{}_{}'.format(kc_src, 'ct')
 
     foo.kc_bas = et_cell.input.loc[foo_day.dt_string, kc_src] * foo.etf_coeff
+    if et_cell.input.loc[foo_day.dt_string, capture_flag] > 0.:
+        foo.capture = 1
+    else:
+        foo.capture = 0
 
     # Save kcb value for use tomorrow in case curve needs to be extended until frost
     # Save kc_bas_prev prior to CO2 adjustment to avoid double correction

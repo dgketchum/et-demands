@@ -11,12 +11,12 @@ class ProjectFields:
     estimate of irrigated status and crop type.
 
     """
+
     def __init__(self):
         super().__init__()
         self.fields_dict = None
 
     def initialize_field_data(self, config):
-
         self.fields_dict = {}
 
         df = gpd.read_file(config.fields_path)
@@ -34,6 +34,7 @@ class ProjectFields:
 
             field.set_input_timeseries(config)
             field.set_field_properties(config)
+            field.set_irrigation_cuttings(config)
 
 
 class FieldData:
@@ -43,8 +44,10 @@ class FieldData:
     and estimates of historical state (e.g., crop type and irrigation status).
 
     """
+
     def __init__(self):
         super().__init__()
+        self.irrigation_data = None
         self.props = None
         self.refet = None
         self.crop_coeffs = None
@@ -72,6 +75,12 @@ class FieldData:
         with open(f, 'r') as fp:
             dct = json.load(fp)
         self.props = dct[str(self.field_id)]
+
+    def set_irrigation_cuttings(self, config):
+        f = config.irrigation_data
+        with open(f, 'r') as fp:
+            dct = json.load(fp)
+        self.irrigation_data = dct[str(self.field_id)]
 
 
 if __name__ == '__main__':

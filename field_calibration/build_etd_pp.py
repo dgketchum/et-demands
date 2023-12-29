@@ -1,8 +1,10 @@
 import os
+
+import pandas as pd
 from pyemu.utils import PstFrom
 
 
-def build_pest_etd(model_dir, pest_dir, **kwargs):
+def build_pest_etd(model_dir, pest_dir, input_data, **kwargs):
     pest = PstFrom(model_dir, pest_dir, remove_existing=True)
 
     for k, v in kwargs['pars'].items():
@@ -11,11 +13,14 @@ def build_pest_etd(model_dir, pest_dir, **kwargs):
 
     pest.add_observations(kwargs['obs']['file'], insfile=kwargs['obs']['insfile'])
 
+    idf = pd.read_csv(input_data, index_col=0, parse_dates=True)
+    idf['dummy_idx'] = ['eta_{}'.format(str(i).rjust(6, '0')) for i in range(idf.shape[0])]
+    captures = [i for i, r in idf.iterrows() if r['etf_inv_irr_ct'] and i.month in list(range(5, 11))]
+    captures = idf['dummy_idx'].loc[captures]
+
     d = pest.obs_dfs[0].copy()
-    d['weight'].loc[d['obsval'] >= 4.] = 0.0
-    d['weight'].loc[d['obsval'] < 4.] = 0.0
-    d['weight'][:365] = 0.0
-    d['weight'][2329:2388] = 1.0
+    d['weight'] = 0.0
+    d['weight'].loc[captures] = 1.0
     pest.obs_dfs[0] = d
 
     pest.py_run_file = 'custom_forward_run.py'
@@ -25,13 +30,18 @@ def build_pest_etd(model_dir, pest_dir, **kwargs):
 
 
 if __name__ == '__main__':
-    d = '/home/dgketchum/PycharmProjects/et-demands/examples/tongue/'
+
+    fid = '1778'
+    project = 'tongue'
+    d = '/home/dgketchum/PycharmProjects/et-demands/examples/{}'.format(project)
+
+    data = '/media/research/IrrigationGIS/et-demands/examples/{}/input_timeseries'.format(project)
+    input_csv = os.path.join(data, '{}_daily.csv'.format(fid))
 
     pp_dir = os.path.join(d, 'pest')
 
-    # obs_file = os.path.join(pp_dir, 'eta.csv')
-    ins = '2100.ins'
-    p_file = '../examples/tongue/params.csv'
+    ins = '{}.ins'.format(fid)
+    p_file = 'params.csv'.format(project)
 
     dct = {'obs': {'file': 'eta.np',
                    'insfile': ins},
@@ -50,14 +60,22 @@ if __name__ == '__main__':
                        'pargp': 'tew', 'index_cols': 0, 'use_cols': 1, 'use_rows': 2},
 
                'ndvi_alpha': {'file': p_file,
-                              'initial_value': 0.9, 'lower_bound': 0.1, 'upper_bound': 1.5,
+                              'initial_value': 1.0, 'lower_bound': 0.1, 'upper_bound': 1.5,
                               'pargp': 'ndvi_alpha', 'index_cols': 0, 'use_cols': 1, 'use_rows': 3},
 
                'ndvi_beta': {'file': p_file,
-                             'initial_value': 0.9, 'lower_bound': 0.1, 'upper_bound': 1.5,
+                             'initial_value': 0.0, 'lower_bound': -0.5, 'upper_bound': 0.5,
                              'pargp': 'ndvi_beta', 'index_cols': 0, 'use_cols': 1, 'use_rows': 4},
+
+               'etf_coeff': {'file': p_file,
+                             'initial_value': 1.0, 'lower_bound': 0.6, 'upper_bound': 1.5,
+                             'pargp': 'etf_coeff', 'index_cols': 0, 'use_cols': 1, 'use_rows': 5},
+
+               'mad': {'file': p_file,
+                       'initial_value': 0.6, 'lower_bound': 0.1, 'upper_bound': 0.9,
+                       'pargp': 'mad', 'index_cols': 0, 'use_cols': 1, 'use_rows': 6},
 
            }
            }
-    build_pest_etd(d, pp_dir, **dct)
+    build_pest_etd(d, pp_dir, input_csv, **dct)
 # ========================= EOF ====================================================================

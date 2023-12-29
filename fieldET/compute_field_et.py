@@ -31,20 +31,11 @@ def compute_field_et(config, et_cell, foo, foo_day, debug_flag=False):
 
     foo.height = max(0.05, foo.height)
 
-
-
     if et_cell.props['irr'][str(foo_day.year)] < 0.5:
         fallow = True
     else:
         fallow = False
 
-    if fallow or config.field_type == 'unirrigated':
-        cover_proxy = '{}_inv_irr'.format(config.kc_proxy)
-    else:
-        cover_proxy = '{}_irr'.format(config.kc_proxy)
-
-    foo.ndvi = et_cell.input.loc[foo_day.dt_string, cover_proxy]
-    foo.fc = foo.ndvi_alpha * foo.ndvi + foo.ndvi_beta
 
     kc_max = max(foo.kc_max, foo.kc_bas + 0.05)
 
@@ -57,7 +48,16 @@ def compute_field_et(config, et_cell, foo, foo_day, debug_flag=False):
     #   for evaporation and fraction of ground covered by vegetation
 
     # heightcalc  #'call to heightcalc was moved to top of this subroutine 12/26/07 by Allen
-    foo.fc = ((foo.kc_bas - foo.kc_min) / (kc_max - foo.kc_min)) ** (1 + 0.5 * foo.height)
+    # foo.fc = ((foo.kc_bas - foo.kc_min) / (kc_max - foo.kc_min)) ** (1 + 0.5 * foo.height)
+
+    # dgketchum hack tunable cover fraction function
+    if fallow or config.field_type == 'unirrigated':
+        cover_proxy = '{}_inv_irr'.format(config.cover_proxy)
+    else:
+        cover_proxy = '{}_irr'.format(config.cover_proxy)
+    foo.ndvi = et_cell.input.loc[foo_day.dt_string, cover_proxy]
+    foo.fc = foo.ndvi_alpha * foo.ndvi + foo.ndvi_beta
+
     # limit so that few > 0
     foo.fc = min(foo.fc, 0.99)
     if np.isnan(foo.fc):
@@ -130,10 +130,14 @@ def compute_field_et(config, et_cell, foo, foo_day, debug_flag=False):
 
     # Limit to fraction wetted by irrigation
     # dgketchum limit this to irrigated field type
+    # and that fw = 1 - fc
     if config.field_type == 'irrigated':
-        foo.few = min(max(foo.few, 0.001), foo.fw_irr)
+        # foo.few = min(max(foo.few, 0.001), foo.fw_irr)
+        foo.few = max(foo.few, 0.001)
+        foo.fw_irr = 1 - foo.fc
     else:
         foo.few = 0.
+        foo.fw_irr = 0.
 
     # Fraction of ground that is exposed and wet by precip beyond irrigation
 
@@ -304,6 +308,7 @@ def compute_field_et(config, et_cell, foo, foo_day, debug_flag=False):
 
     # MAD: Management Allowable Depletion
     # MAD is set to mad_ini or mad_mid in kcb_daily sub.
+    # dgketchum reimplement Allen 2005 form
     foo.raw = foo.mad * taw
 
     # Remember to check reset of AD and RAW each new crop season.  #####
@@ -575,10 +580,7 @@ def compute_field_et(config, et_cell, foo, foo_day, debug_flag=False):
     foo.irr_sim = 0.0
 
     if config.field_type == 'irrigated':
-        if foo_day.year in et_cell.irrigation_data.keys():
-            irr_days = et_cell.irrigation_data[foo_day.year]['irr_doys']
-        else:
-            irr_days = []
+        irr_days = et_cell.irrigation_data[str(foo_day.year)]['irr_doys']
 
         # TODO setup calibration for these parameters (i.e., Kcb and NDVI-based irr_doy formulation)
         if (foo_day.doy in irr_days or foo.kc_bas > 0.7) and foo.depl_root > foo.raw:

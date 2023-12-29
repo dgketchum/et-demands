@@ -25,7 +25,6 @@ activate_conda_environment('mihm')
 def run():
     p = '/home/dgketchum/PycharmProjects/et-demands/fieldET/run_field_et.py'
     os.system('python' + ' {}'.format(p))
-    os.chdir("../examples")
 
 
 if __name__ == '__main__':

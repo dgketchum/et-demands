@@ -17,7 +17,8 @@ from fieldET.initialize_obs_crop_cycle import InitializeObsCropCycle
 from fieldET import obs_kcb_daily
 from fieldET import calculate_height
 
-OUTPUT_FMT = ['et_act',
+OUTPUT_FMT = ['capture',
+              'et_act',
               'etref',
               'kc_act',
               'kc_bas',
@@ -179,6 +180,7 @@ def field_day_loop(config, field, debug_flag=False, return_df=False):
         # Eventually let compute_crop_et() write directly to output df
         foo.crop_df.at[step_dt, 'etref'] = field.refet.at[step_dt]
         foo.crop_df.at[step_dt, 'et_act'] = foo.etc_act
+        foo.crop_df.at[step_dt, 'capture'] = foo.capture
         foo.crop_df.at[step_dt, 'kc_act'] = foo.kc_act
         foo.crop_df.at[step_dt, 'ks'] = foo.ks
         foo.crop_df.at[step_dt, 'ke'] = foo.ke
