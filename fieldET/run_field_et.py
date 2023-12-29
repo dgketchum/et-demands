@@ -10,7 +10,6 @@ from fieldET import obs_field_cycle
 
 
 def run_fields(ini_path, debug_flag=False, field_type='irrigated', target_field='1178', project='tongue'):
-
     config = obs_crop_et_data.ProjectConfig(field_type=field_type)
     config.read_cet_ini(ini_path, debug_flag)
 
@@ -41,7 +40,7 @@ def run_fields(ini_path, debug_flag=False, field_type='irrigated', target_field=
         comp = pd.DataFrame(data=np.vstack([obs, pred]).T, columns=['obs', 'pred'], index=df.index)
         comp['eq'] = comp['obs'] == comp['pred']
 
-        rmse = np.sqrt(((pred - obs)**2).mean())
+        rmse = np.sqrt(((pred - obs) ** 2).mean())
         end_time = time.time()
         print('Execution time: {:.2f} seconds'.format(end_time - start_time))
         print('Mean Obs: {:.2f}, Mean Pred: {:.2f}'.format(obs.mean(), pred.mean()))
@@ -50,7 +49,6 @@ def run_fields(ini_path, debug_flag=False, field_type='irrigated', target_field=
 
 
 if __name__ == '__main__':
-
     # project = 'flynn'
     project = 'tongue'
     target = '1778'
