@@ -1,21 +1,8 @@
 import os
-import os
 import sys
-import json
-from subprocess import call
-from datetime import datetime
-from tqdm import tqdm
 
 import ee
-import numpy as np
-import pandas as pd
 import geopandas as gpd
-
-import matplotlib.pyplot as plt
-
-from rasterstats import zonal_stats
-
-from detecta import detect_peaks, detect_cusum, detect_onset
 
 from ee_api.ee_utils import landsat_masked, is_authorized
 
@@ -24,7 +11,18 @@ sys.setrecursionlimit(5000)
 
 IRR = 'projects/ee-dgketchum/assets/IrrMapper/IrrMapperComp'
 
-L5, L8 = 'LANDSAT/LT05/C02/T1_L2', 'LANDSAT/LC08/C02/T1_L2'
+EC_POINTS = 'users/dgketchum/flux_ET_dataset/stations'
+
+STATES = ['AZ', 'CA', 'CO', 'ID', 'MT', 'NM', 'NV', 'OR', 'UT', 'WA', 'WY']
+
+
+def get_flynn():
+    return ee.FeatureCollection(ee.Feature(ee.Geometry.Polygon([[-106.63372199162623, 46.235698473362476],
+                                                                [-106.49124304875514, 46.235698473362476],
+                                                                [-106.49124304875514, 46.31472036075997],
+                                                                [-106.63372199162623, 46.31472036075997],
+                                                                [-106.63372199162623, 46.235698473362476]]),
+                                           {'key': 'Flynn_Ex'}))
 
 
 def export_ndvi(feature_coll, year=2015, bucket=None, debug=False, mask_type='irr'):
@@ -74,22 +72,75 @@ def export_ndvi(feature_coll, year=2015, bucket=None, debug=False, mask_type='ir
         print(_name)
 
 
+def flux_tower_ndvi(shapefile, bucket=None, debug=False):
+    df = gpd.read_file(shapefile)
+
+    for fid, row in df.iterrows():
+
+        for year in range(1987, 2023):
+
+            state = row['field_3']
+            if state not in STATES:
+                continue
+
+            site = row['field_1']
+
+            point = ee.Geometry.Point([row['field_8'], row['field_7']])
+            geo = point.buffer(150.)
+            fc = ee.FeatureCollection(ee.Feature(geo, {'field_1': site}))
+
+            coll = landsat_masked(year, fc).map(lambda x: x.normalizedDifference(['B5', 'B4']))
+            ndvi_scenes = coll.aggregate_histogram('system:index').getInfo()
+
+            first, bands = True, None
+            selectors = [site]
+            for img_id in ndvi_scenes:
+
+                splt = img_id.split('_')
+                _name = '_'.join(splt[-3:])
+
+                selectors.append(_name)
+
+                nd_img = coll.filterMetadata('system:index', 'equals', img_id).first().rename(_name)
+
+                if first:
+                    bands = nd_img
+                    first = False
+                else:
+                    bands = bands.addBands([nd_img])
+
+                if debug:
+                    data = nd_img.sample(point, 30).getInfo()
+                    print(data['features'])
+
+            data = bands.reduceRegions(collection=fc,
+                                       reducer=ee.Reducer.mean(),
+                                       scale=30)
+
+            desc = '{}_{}'.format(site, year)
+            task = ee.batch.Export.table.toCloudStorage(
+                data,
+                description=desc,
+                bucket=bucket,
+                fileNamePrefix=desc,
+                fileFormat='CSV',
+                selectors=selectors)
+
+            task.start()
+
+
 if __name__ == '__main__':
     is_authorized()
     bucket_ = 'wudr'
 
-    fc = ee.FeatureCollection(ee.Feature(ee.Geometry.Polygon([[-106.63372199162623, 46.235698473362476],
-                                                              [-106.49124304875514, 46.235698473362476],
-                                                              [-106.49124304875514, 46.31472036075997],
-                                                              [-106.63372199162623, 46.31472036075997],
-                                                              [-106.63372199162623, 46.235698473362476]]),
-                                         {'key': 'Flynn_Ex'}))
-
     types_ = ['irr']
+    #
+    # for mask_type in types_:
+    #
+    #     for y in [x for x in range(1987, 2021)]:
+    #         export_ndvi(fc, y, bucket_, debug=False, mask_type=mask_type)
+    #         pass
 
-    for mask_type in types_:
-
-        for y in [x for x in range(1987, 2021)]:
-            export_ndvi(fc, y, bucket_, debug=False, mask_type=mask_type)
-            pass
+    shp = '/home/dgketchum/Downloads/flux_ET_dataset/station_metadata_aea.shp'
+    flux_tower_ndvi(shp, bucket=bucket_, debug=True)
 # ========================= EOF ====================================================================
