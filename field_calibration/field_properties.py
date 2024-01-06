@@ -39,7 +39,7 @@ if __name__ == '__main__':
 
     soils_ = os.path.join(d, 'soils_aea')
 
-    project = 'tongue'
+    project = 'flux'
     project_ws = os.path.join(d, 'examples', project)
 
     fields_shp = os.path.join(project_ws, 'gis', '{}_fields_sample.shp'.format(project))

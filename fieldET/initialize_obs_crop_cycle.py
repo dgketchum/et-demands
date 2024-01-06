@@ -7,6 +7,30 @@ import numpy as np
 
 de_initial = 10.0
 
+FOO_FMT = ['et_act',
+           'etref',
+           'kc_act',
+           'kc_bas',
+           'ks',
+           'ke',
+           'ppt',
+           'depl_root',
+           'depl_surface',
+           'irrigation',
+           'dperc',
+           'fc',
+           'few',
+           'zr',
+           'aw3',
+           'p_rz',
+           'p_eft',
+           'niwr',
+           'runoff',
+           'season',
+           'cutting',
+           'et_bas',
+           ]
+
 
 class InitializeObsCropCycle:
     def __init__(self):
@@ -288,7 +312,7 @@ class InitializeObsCropCycle:
         self.zr = self.zr_min
         self.crop_setup_flag = False
 
-    def setup_dataframe(self, et_cell, fmt):
+    def setup_dataframe(self, et_cell):
         """Initialize output dataframe
 
         Attributes
@@ -317,7 +341,7 @@ class InitializeObsCropCycle:
         self.crop_df['niwr'] = np.nan
         self.crop_df['season'] = 0
         self.crop_df['cutting'] = 0
-        add_cols = [c for c in fmt if c not in self.crop_df.columns]
+        add_cols = [c for c in FOO_FMT if c not in self.crop_df.columns]
         for c in add_cols:
             self.crop_df[c] = np.nan
 

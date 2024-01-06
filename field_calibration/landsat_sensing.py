@@ -10,7 +10,7 @@ from rasterstats import zonal_stats
 from detecta import detect_cusum, detect_peaks, detect_onset
 
 
-def landsat_time_series(in_shp, tif_dir, years, out_csv, out_csv_ct, min_ct=100):
+def landsat_time_series_image(in_shp, tif_dir, years, out_csv, out_csv_ct, min_ct=100):
     gdf = gpd.read_file(in_shp)
     gdf.index = gdf['FID']
 
@@ -18,7 +18,7 @@ def landsat_time_series(in_shp, tif_dir, years, out_csv, out_csv_ct, min_ct=100)
 
     for yr in years:
 
-        file_list, dts = get_list_info(tif_dir, yr)
+        file_list, dts = get_tif_list(tif_dir, yr)
 
         dt_index = pd.date_range('{}-01-01'.format(yr), '{}-12-31'.format(yr), freq='D')
         df = pd.DataFrame(index=dt_index, columns=gdf.index)
@@ -50,13 +50,65 @@ def landsat_time_series(in_shp, tif_dir, years, out_csv, out_csv_ct, min_ct=100)
     ctdf.to_csv(out_csv_ct)
 
 
+def landsat_time_series_table(in_shp, csv_dir, years, out_csv, out_csv_ct):
+    gdf = gpd.read_file(in_shp)
+    gdf.index = gdf['FID']
+
+    adf, ctdf, first = None, None, True
+
+    dt_index = pd.date_range('{}-01-01'.format(years[0]), '{}-12-31'.format(years[-1]), freq='D')
+    df = pd.DataFrame(index=dt_index, columns=gdf.index)
+    ct = pd.DataFrame(index=dt_index, columns=gdf.index)
+
+    for yr in years:
+
+        file_list = [os.path.join(csv_dir, x) for x in os.listdir(csv_dir) if
+         x.endswith('.csv') and '_{}'.format(yr) in x]
+
+        first = True
+        for f in file_list:
+            field = pd.read_csv(f)
+            sid = field.columns[0]
+            cols = [c for c in field.columns if len(c.split('_')) == 3]
+            f_idx = [c.split('_')[-1] for c in cols]
+            f_idx = [pd.to_datetime(i) for i in f_idx]
+            field = pd.DataFrame(columns=[sid], data=field[cols].values.T, index=f_idx)
+            duplicates = field[field.index.duplicated(keep=False)]
+            if not duplicates.empty:
+                field = field.resample('D').mean()
+            field = field.sort_index()
+            df.loc[field.index, sid] = field[sid]
+
+            ct.loc[f_idx, sid] = ~pd.isna(field[sid])
+
+        df = df.astype(float).interpolate()
+        df = df.interpolate(method='bfill')
+
+        ct = ct.fillna(0)
+        ct = ct.astype(int)
+
+        if first:
+            adf = df.copy()
+            ctdf = ct.copy()
+            first = False
+        else:
+            adf = pd.concat([adf, df], axis=0, ignore_index=False, sort=True)
+            ctdf = pd.concat([ctdf, ct], axis=0, ignore_index=False, sort=True)
+
+    adf.to_csv(out_csv)
+    ctdf.to_csv(out_csv_ct)
+
+
 def join_remote_sensing(_dir, dst):
     l = [os.path.join(_dir, f) for f in os.listdir(_dir) if f.endswith('.csv')]
     first = True
-    params = ['etf_inv_irr',
-              'ndvi_inv_irr',
-              'etf_irr',
-              'ndvi_irr']
+
+    # params = ['etf_inv_irr',
+    #           'ndvi_inv_irr',
+    #           'etf_irr',
+    #           'ndvi_irr']
+
+    params = ['no_mask']
 
     params += ['{}_ct'.format(p) for p in params]
 
@@ -83,7 +135,7 @@ def join_remote_sensing(_dir, dst):
     df.to_csv(dst)
 
 
-def get_list_info(tif_dir, year):
+def get_tif_list(tif_dir, year):
     """ Pass list in place of tif_dir optionally """
     l = [os.path.join(tif_dir, x) for x in os.listdir(tif_dir) if
          x.endswith('.tif') and '_{}'.format(year) in x]
@@ -219,11 +271,12 @@ def detect_cuttings(landsat, irr_csv, out_json, irr_threshold=0.1):
 if __name__ == '__main__':
 
     d = '/media/research/IrrigationGIS/et-demands'
-    project = 'tongue'
+    project = 'flux'
+    dtype = 'extracts'
     project_ws = os.path.join(d, 'examples', project)
     tables = os.path.join(project_ws, 'landsat', 'tables')
 
-    types_ = ['inv_irr', 'irr']
+    types_ = ['no_mask']
     sensing_params = ['etf', 'ndvi']
 
     for mask_type in types_:
@@ -233,19 +286,20 @@ if __name__ == '__main__':
             yrs = [x for x in range(2015, 2021)]
             shp = os.path.join(project_ws, 'gis', '{}_fields_sample.shp'.format(project))
 
-            tif, src = None, None
+            ee_data, src = None, None
 
-            tif = os.path.join(project_ws, 'landsat', sensing_param, mask_type)
+            ee_data = os.path.join(project_ws, 'landsat', dtype, sensing_param, mask_type)
             src = os.path.join(tables, '{}_{}_{}_sample.csv'.format(project, sensing_param, mask_type))
             src_ct = os.path.join(tables, '{}_{}_{}_ct_sample.csv'.format(project, sensing_param, mask_type))
 
-            # landsat_time_series(shp, tif, yrs, src, src_ct)
+            # landsat_time_series_table(shp, ee_data, yrs, src, src_ct)
+            # landsat_time_series_image(shp, tif, yrs, src, src_ct)
 
     dst_ = os.path.join(project_ws, 'landsat', '{}_sensing_sample.csv'.format(project))
-    # join_remote_sensing(tables, dst_)
+    join_remote_sensing(tables, dst_)
 
     irr_ = os.path.join(project_ws, 'properties', '{}_sample_irr.csv'.format(project))
     js_ = os.path.join(project_ws, 'landsat', '{}_cuttings.json'.format(project))
-    detect_cuttings(dst_, irr_, irr_threshold=0.1, out_json=js_)
+    # detect_cuttings(dst_, irr_, irr_threshold=0.1, out_json=js_)
 
 # ========================= EOF ================================================================================

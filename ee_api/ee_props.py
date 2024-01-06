@@ -3,7 +3,7 @@ import ee
 IRR = 'projects/ee-dgketchum/assets/IrrMapper/IrrMapperComp'
 
 
-def get_cdl(fields, desc):
+def get_cdl(fields, desc, geometry='polygon'):
     plots = ee.FeatureCollection(fields)
     crops, first = None, True
     cdl_years = [x for x in range(2008, 2023)]
@@ -38,7 +38,7 @@ def get_cdl(fields, desc):
     task.start()
 
 
-def get_irrigation(fields, desc, debug=False):
+def get_irrigation(fields, desc, debug=False, geometry='polygon'):
     plots = ee.FeatureCollection(fields)
     irr_coll = ee.ImageCollection(IRR)
 
@@ -84,11 +84,11 @@ def get_irrigation(fields, desc, debug=False):
 if __name__ == '__main__':
     ee.Initialize()
 
-    project = 'tongue'
+    project = 'flux'
     fields_ = 'users/dgketchum/fields/{}_sample'.format(project)
     description = '{}_sample_cdl'.format(project)
     get_cdl(fields_, description)
     description = '{}_sample_irr'.format(project)
-    # get_irrigation(fields_, description, debug=False)
+    get_irrigation(fields_, description, debug=False)
 
 # ========================= EOF ====================================================================

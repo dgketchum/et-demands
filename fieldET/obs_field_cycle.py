@@ -27,70 +27,29 @@ OUTPUT_FMT = ['capture',
               'ppt',
               'depl_root',
               'depl_surface',
+              'irrigation',
+              'dperc',
               'fc',
               'few',
               'zr',
               'aw3',
-              'dperc',
               'p_rz',
               'p_eft',
               'niwr',
-              'irrigation',
               'runoff',
               'season',
               'cutting',
               'et_bas',
-
               ]
 
 
 class DayData:
-    """Daily crop data container
-
-    Attributes
-    ----------
-
-    Notes
-    -----
-    Used in compute_crop_gdd(), needs to be persistent during day loop
-
-    """
 
     def __init__(self):
         self.etref_array = np.zeros(30)
 
 
-def field_day_loop(config, field, debug_flag=False, return_df=False):
-    """Compute crop et for each daily timestep at a field
-
-    Parameters
-    ---------
-    crop_count : int
-        count of crop being computed
-    config :
-
-    field : str
-
-    crop :
-
-    debug_flag : boolean
-        True : write debug level comments to debug.txt
-        False
-    mp_procs : int
-        number of cores to use for multiprocessing
-
-    Returns
-    -------
-    : boolean
-        True :
-        False :
-
-    Notes
-    -----
-    mp_procs always set to 1 if calling directly
-    mp_procs can be greater than one if called through crop_day_loop_mp
-
-    """
+def field_day_loop(config, field, debug_flag=False):
 
     func_str = 'field_day_loop()'
 
@@ -123,26 +82,14 @@ def field_day_loop(config, field, debug_flag=False, return_df=False):
                 foo.__setattr__('depl_zep', 0.0)
 
     # Initialize crop data frame
-    foo.setup_dataframe(field, OUTPUT_FMT)
+    foo.setup_dataframe(field)
     foo.set_kc_max(field)
     foo_day = DayData()
     foo_day.sdays = 0
     foo_day.doy_prev = 0
 
-    # At very start for crop, set up for next season
-    if not foo.in_season and foo.crop_setup_flag:
-        foo.setup_crop(crop)
-
     for step_dt, step_doy in foo.crop_df[['doy']].iterrows():
 
-        # if not 2000 <= step_dt.year <= 2006:
-        #     continue
-        # if step_dt.year != 2012:
-        #     continue
-
-        # End of season for each crop, set up for non-growing and dormant season
-        if not foo.in_season and foo.dormant_setup_flag:
-            foo.setup_dormant(field, crop)
         if debug_flag:
             logging.debug(
                 '{}: in_season[{}]  crop_setup[{}]  dormant_setup[{}]'.format(
@@ -206,17 +153,8 @@ def field_day_loop(config, field, debug_flag=False, return_df=False):
 
         # Write final output file variables to DEBUG file
 
-    if return_df:
-        foo.crop_df = foo.crop_df[OUTPUT_FMT]
-        return foo.crop_df
-
-    # Write output files
-    if (config.cet_out['daily_output_flag'] or
-        config.cet_out['monthly_output_flag'] or
-        config.cet_out['annual_output_flag'] or
-        config.gs_output_flag):
-        write_crop_output(config, field, crop, foo)
-    return True
+    foo.crop_df = foo.crop_df[OUTPUT_FMT]
+    return foo.crop_df
 
 
 def write_crop_output(data, et_cell, crop, foo):

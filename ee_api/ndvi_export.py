@@ -77,13 +77,16 @@ def flux_tower_ndvi(shapefile, bucket=None, debug=False):
 
     for fid, row in df.iterrows():
 
-        for year in range(1987, 2023):
+        for year in range(2015, 2022):
 
             state = row['field_3']
             if state not in STATES:
                 continue
 
             site = row['field_1']
+
+            if site != 'US-Mj2':
+                continue
 
             point = ee.Geometry.Point([row['field_8'], row['field_7']])
             geo = point.buffer(150.)
@@ -117,7 +120,7 @@ def flux_tower_ndvi(shapefile, bucket=None, debug=False):
                                        reducer=ee.Reducer.mean(),
                                        scale=30)
 
-            desc = '{}_{}'.format(site, year)
+            desc = 'ndvi_{}_{}'.format(site, year)
             task = ee.batch.Export.table.toCloudStorage(
                 data,
                 description=desc,
@@ -127,6 +130,7 @@ def flux_tower_ndvi(shapefile, bucket=None, debug=False):
                 selectors=selectors)
 
             task.start()
+            print(desc)
 
 
 if __name__ == '__main__':
@@ -142,5 +146,6 @@ if __name__ == '__main__':
     #         pass
 
     shp = '/home/dgketchum/Downloads/flux_ET_dataset/station_metadata_aea.shp'
-    flux_tower_ndvi(shp, bucket=bucket_, debug=True)
+    flux_tower_ndvi(shp, bucket=bucket_, debug=False)
+
 # ========================= EOF ====================================================================

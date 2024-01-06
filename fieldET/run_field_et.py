@@ -25,7 +25,7 @@ def run_fields(ini_path, debug_flag=False, field_type='irrigated', target_field=
         cell_count += 1
 
         start_time = time.time()
-        df = obs_field_cycle.field_day_loop(config, field, debug_flag=debug_flag, return_df=True)
+        df = obs_field_cycle.field_day_loop(config, field, debug_flag=debug_flag)
         pred = df['et_act'].values
 
         np.savetxt(os.path.join(d, 'pest', 'eta.np'), pred)
@@ -44,7 +44,12 @@ def run_fields(ini_path, debug_flag=False, field_type='irrigated', target_field=
         end_time = time.time()
         print('Execution time: {:.2f} seconds'.format(end_time - start_time))
         print('Mean Obs: {:.2f}, Mean Pred: {:.2f}'.format(obs.mean(), pred.mean()))
-        print('RMSE: {:.4f}\n\n\n\n'.format(rmse))
+        print('RMS Diff: {:.4f}\n\n\n\n'.format(rmse))
+
+        comp = comp.loc[a[a['capture'] == 1.0].index]
+        pred, obs = comp['pred'], comp['obs']
+        rmse = np.sqrt(((pred - obs) ** 2).mean())
+        print('RMSE Capture Dates: {:.4f}\n\n\n\n'.format(rmse))
         pass
 
 

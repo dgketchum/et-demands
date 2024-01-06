@@ -78,13 +78,16 @@ def flux_tower_etf(shapefile, bucket=None, debug=False):
 
     for fid, row in df.iterrows():
 
-        for year in range(1987, 2023):
+        for year in range(2015, 2023):
 
             state = row['field_3']
             if state not in STATES:
                 continue
 
             site = row['field_1']
+
+            if site not in ['US-Mj1', 'US-Mj2']:
+                continue
 
             point = ee.Geometry.Point([row['field_8'], row['field_7']])
             geo = point.buffer(150.)
@@ -121,7 +124,7 @@ def flux_tower_etf(shapefile, bucket=None, debug=False):
                                        reducer=ee.Reducer.mean(),
                                        scale=30)
 
-            desc = '{}_{}'.format(site, year)
+            desc = 'etf_{}_{}'.format(site, year)
             task = ee.batch.Export.table.toCloudStorage(
                 data,
                 description=desc,
@@ -131,6 +134,7 @@ def flux_tower_etf(shapefile, bucket=None, debug=False):
                 selectors=selectors)
 
             task.start()
+            print(desc)
 
 
 if __name__ == '__main__':
