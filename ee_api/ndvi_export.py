@@ -72,8 +72,18 @@ def export_ndvi(feature_coll, year=2015, bucket=None, debug=False, mask_type='ir
         print(_name)
 
 
-def flux_tower_ndvi(shapefile, bucket=None, debug=False):
+def flux_tower_ndvi(shapefile, bucket=None, debug=False, mask_type='irr'):
     df = gpd.read_file(shapefile)
+
+    assert df.crs.srs == 'EPSG:5071'
+
+    df = df.to_crs(epsg=4326)
+
+    s, e = '1987-01-01', '2021-12-31'
+    irr_coll = ee.ImageCollection(IRR)
+    coll = irr_coll.filterDate(s, e).select('classification')
+    remap = coll.map(lambda img: img.lt(1))
+    irr_min_yr_mask = remap.sum().gte(5)
 
     for fid, row in df.iterrows():
 
@@ -85,8 +95,12 @@ def flux_tower_ndvi(shapefile, bucket=None, debug=False):
 
             site = row['field_1']
 
-            if site != 'US-Mj2':
+            if site not in ['US-Mj1', 'US-Mj2']:
                 continue
+
+            irr = irr_coll.filterDate('{}-01-01'.format(year),
+                                      '{}-12-31'.format(year)).select('classification').mosaic()
+            irr_mask = irr_min_yr_mask.updateMask(irr.lt(1))
 
             point = ee.Geometry.Point([row['field_8'], row['field_7']])
             geo = point.buffer(150.)
@@ -106,6 +120,13 @@ def flux_tower_ndvi(shapefile, bucket=None, debug=False):
 
                 nd_img = coll.filterMetadata('system:index', 'equals', img_id).first().rename(_name)
 
+                if mask_type == 'no_mask':
+                    nd_img = nd_img.clip(fc.geometry())
+                elif mask_type == 'irr':
+                    nd_img = nd_img.clip(fc.geometry()).mask(irr_mask)
+                elif mask_type == 'inv_irr':
+                    nd_img = nd_img.clip(fc.geometry()).mask(irr.gt(0))
+
                 if first:
                     bands = nd_img
                     first = False
@@ -120,7 +141,7 @@ def flux_tower_ndvi(shapefile, bucket=None, debug=False):
                                        reducer=ee.Reducer.mean(),
                                        scale=30)
 
-            desc = 'ndvi_{}_{}'.format(site, year)
+            desc = 'ndvi_{}_{}_{}'.format(site, year, mask_type)
             task = ee.batch.Export.table.toCloudStorage(
                 data,
                 description=desc,
@@ -137,15 +158,9 @@ if __name__ == '__main__':
     is_authorized()
     bucket_ = 'wudr'
 
-    types_ = ['irr']
-    #
-    # for mask_type in types_:
-    #
-    #     for y in [x for x in range(1987, 2021)]:
-    #         export_ndvi(fc, y, bucket_, debug=False, mask_type=mask_type)
-    #         pass
-
-    shp = '/home/dgketchum/Downloads/flux_ET_dataset/station_metadata_aea.shp'
-    flux_tower_ndvi(shp, bucket=bucket_, debug=False)
+    shp = '/media/research/IrrigationGIS/et-demands/examples/flux/gis/flux_fields_sample.shp'
+    for mask in ['inv_irr', 'irr']:
+        flux_tower_ndvi(shp, bucket_, debug=False, mask_type=mask)
+        pass
 
 # ========================= EOF ====================================================================

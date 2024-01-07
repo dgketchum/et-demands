@@ -39,7 +39,7 @@ def export_etf(feature_coll, year=2015, bucket=None, debug=False, mask_type='irr
     irr_mask = irr_min_yr_mask.updateMask(irr.lt(1))
 
     coll = ee.ImageCollection(ETF).filterDate('{}-01-01'.format(year), '{}-12-31'.format(year))
-    coll = coll.filterBounds(fc)
+    coll = coll.filterBounds(feature_coll)
     scenes = coll.aggregate_histogram('system:index').getInfo()
 
     for img_id in scenes:
@@ -73,12 +73,22 @@ def export_etf(feature_coll, year=2015, bucket=None, debug=False, mask_type='irr
         print(_name)
 
 
-def flux_tower_etf(shapefile, bucket=None, debug=False):
+def flux_tower_etf(shapefile, bucket=None, debug=False, mask_type='irr'):
     df = gpd.read_file(shapefile)
+
+    assert df.crs.srs == 'EPSG:5071'
+
+    df = df.to_crs(epsg=4326)
+
+    s, e = '1987-01-01', '2021-12-31'
+    irr_coll = ee.ImageCollection(IRR)
+    coll = irr_coll.filterDate(s, e).select('classification')
+    remap = coll.map(lambda img: img.lt(1))
+    irr_min_yr_mask = remap.sum().gte(5)
 
     for fid, row in df.iterrows():
 
-        for year in range(2015, 2023):
+        for year in range(2015, 2022):
 
             state = row['field_3']
             if state not in STATES:
@@ -89,17 +99,22 @@ def flux_tower_etf(shapefile, bucket=None, debug=False):
             if site not in ['US-Mj1', 'US-Mj2']:
                 continue
 
+            irr = irr_coll.filterDate('{}-01-01'.format(year),
+                                      '{}-12-31'.format(year)).select('classification').mosaic()
+            irr_mask = irr_min_yr_mask.updateMask(irr.lt(1))
+
             point = ee.Geometry.Point([row['field_8'], row['field_7']])
             geo = point.buffer(150.)
             fc = ee.FeatureCollection(ee.Feature(geo, {'field_1': site}))
 
             etf_coll = ee.ImageCollection(ETF).filterDate('{}-01-01'.format(year),
                                                           '{}-12-31'.format(year))
-            etf_coll = etf_coll.filterBounds(fc)
+            etf_coll = etf_coll.filterBounds(geo)
             etf_scenes = etf_coll.aggregate_histogram('system:index').getInfo()
 
             first, bands = True, None
             selectors = [site]
+
             for img_id in etf_scenes:
 
                 splt = img_id.split('_')
@@ -110,6 +125,13 @@ def flux_tower_etf(shapefile, bucket=None, debug=False):
                 etf_img = ee.Image(os.path.join(ETF, img_id)).rename(_name)
                 etf_img = etf_img.divide(10000)
 
+                if mask_type == 'no_mask':
+                    etf_img = etf_img.clip(fc.geometry())
+                elif mask_type == 'irr':
+                    etf_img = etf_img.clip(fc.geometry()).mask(irr_mask)
+                elif mask_type == 'inv_irr':
+                    etf_img = etf_img.clip(fc.geometry()).mask(irr.gt(0))
+
                 if first:
                     bands = etf_img
                     first = False
@@ -117,14 +139,14 @@ def flux_tower_etf(shapefile, bucket=None, debug=False):
                     bands = bands.addBands([etf_img])
 
                 if debug:
-                    data = etf_img.sample(point, 30).getInfo()
+                    data = etf_img.sample(fc, 30).getInfo()
                     print(data['features'])
 
             data = bands.reduceRegions(collection=fc,
                                        reducer=ee.Reducer.mean(),
                                        scale=30)
 
-            desc = 'etf_{}_{}'.format(site, year)
+            desc = 'etf_{}_{}_{}'.format(site, year, mask_type)
             task = ee.batch.Export.table.toCloudStorage(
                 data,
                 description=desc,
@@ -141,15 +163,9 @@ if __name__ == '__main__':
     is_authorized()
     bucket_ = 'wudr'
 
-    # fc = get_flynn()
-    # for mask in ['inv_irr']:
-    #     for year in list(range(2015, 2021)):
-    #         export_etf(fc, year, bucket_, debug=False, mask_type=mask)
-    #         pass
+    shp = '/media/research/IrrigationGIS/et-demands/examples/flux/gis/flux_fields_sample.shp'
+    for mask in ['inv_irr', 'irr']:
+        flux_tower_etf(shp, bucket_, debug=False, mask_type=mask)
+        pass
 
-    # fc = EC_POINTS
-    # fc = ee.FeatureCollection(fc)
-
-    shp = '/home/dgketchum/Downloads/flux_ET_dataset/station_metadata_aea.shp'
-    flux_tower_etf(shp, bucket=bucket_, debug=False)
 # ========================= EOF ====================================================================
