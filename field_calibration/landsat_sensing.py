@@ -77,6 +77,7 @@ def landsat_time_series_table(in_shp, csv_dir, years, out_csv, out_csv_ct):
             if not duplicates.empty:
                 field = field.resample('D').mean()
             field = field.sort_index()
+            field[field[sid] == 0.0] = np.nan
             df.loc[field.index, sid] = field[sid]
 
             ct.loc[f_idx, sid] = ~pd.isna(field[sid])
@@ -103,12 +104,10 @@ def join_remote_sensing(_dir, dst):
     l = [os.path.join(_dir, f) for f in os.listdir(_dir) if f.endswith('.csv')]
     first = True
 
-    # params = ['etf_inv_irr',
-    #           'ndvi_inv_irr',
-    #           'etf_irr',
-    #           'ndvi_irr']
-
-    params = ['no_mask']
+    params = ['etf_inv_irr',
+              'ndvi_inv_irr',
+              'etf_irr',
+              'ndvi_irr']
 
     params += ['{}_ct'.format(p) for p in params]
 
@@ -160,9 +159,16 @@ def detect_cuttings(landsat, irr_csv, out_json, irr_threshold=0.1):
         print('\n', c, selector)
         count, fallow = [], []
 
+        if c not in ['US-Mj1', 'US-Mj2']:
+            continue
+
         for yr in years:
 
-            f_irr = irr.at[int(c), 'irr_{}'.format(yr)]
+            try:
+                f_irr = irr.at[int(c), 'irr_{}'.format(yr)]
+            except ValueError:
+                f_irr = irr.at[c, 'irr_{}'.format(yr)]
+
             irrigated = f_irr > irr_threshold
 
             if not irrigated:
@@ -276,14 +282,14 @@ if __name__ == '__main__':
     project_ws = os.path.join(d, 'examples', project)
     tables = os.path.join(project_ws, 'landsat', 'tables')
 
-    types_ = ['no_mask']
+    types_ = ['inv_irr', 'irr']
     sensing_params = ['etf', 'ndvi']
 
     for mask_type in types_:
 
         for sensing_param in sensing_params:
 
-            yrs = [x for x in range(2015, 2021)]
+            yrs = [x for x in range(2000, 2021)]
             shp = os.path.join(project_ws, 'gis', '{}_fields_sample.shp'.format(project))
 
             ee_data, src = None, None
@@ -292,7 +298,7 @@ if __name__ == '__main__':
             src = os.path.join(tables, '{}_{}_{}_sample.csv'.format(project, sensing_param, mask_type))
             src_ct = os.path.join(tables, '{}_{}_{}_ct_sample.csv'.format(project, sensing_param, mask_type))
 
-            # landsat_time_series_table(shp, ee_data, yrs, src, src_ct)
+            landsat_time_series_table(shp, ee_data, yrs, src, src_ct)
             # landsat_time_series_image(shp, tif, yrs, src, src_ct)
 
     dst_ = os.path.join(project_ws, 'landsat', '{}_sensing_sample.csv'.format(project))
@@ -300,6 +306,6 @@ if __name__ == '__main__':
 
     irr_ = os.path.join(project_ws, 'properties', '{}_sample_irr.csv'.format(project))
     js_ = os.path.join(project_ws, 'landsat', '{}_cuttings.json'.format(project))
-    # detect_cuttings(dst_, irr_, irr_threshold=0.1, out_json=js_)
+    detect_cuttings(dst_, irr_, irr_threshold=0.1, out_json=js_)
 
 # ========================= EOF ================================================================================

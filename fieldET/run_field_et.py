@@ -54,10 +54,10 @@ def run_fields(ini_path, debug_flag=False, field_type='irrigated', target_field=
 
 
 if __name__ == '__main__':
-    # project = 'flynn'
-    project = 'tongue'
-    target = '1778'
-    field_type = 'irrigated'
+    project = 'flux'
+    target = 'US-Mj1'
+    field_type = 'unirrigated'
     d = '/home/dgketchum/PycharmProjects/et-demands/examples/{}'.format(project)
     ini = os.path.join(d, '{}_example_cet_obs.ini'.format(project))
-    run_fields(ini_path=ini, debug_flag=False, field_type='irrigated', target_field=target, project=project)
+    run_fields(ini_path=ini, debug_flag=False, field_type=field_type,
+               target_field=target, project=project)

@@ -72,7 +72,7 @@ def export_ndvi(feature_coll, year=2015, bucket=None, debug=False, mask_type='ir
         print(_name)
 
 
-def flux_tower_ndvi(shapefile, bucket=None, debug=False, mask_type='irr'):
+def flux_tower_ndvi(shapefile, bucket=None, debug=False, mask_type='irr', check_dir=None):
     df = gpd.read_file(shapefile)
 
     assert df.crs.srs == 'EPSG:5071'
@@ -87,7 +87,7 @@ def flux_tower_ndvi(shapefile, bucket=None, debug=False, mask_type='irr'):
 
     for fid, row in df.iterrows():
 
-        for year in range(2015, 2022):
+        for year in range(2000, 2015):
 
             state = row['field_3']
             if state not in STATES:
@@ -97,6 +97,13 @@ def flux_tower_ndvi(shapefile, bucket=None, debug=False, mask_type='irr'):
 
             if site not in ['US-Mj1', 'US-Mj2']:
                 continue
+
+            desc = 'ndvi_{}_{}_{}'.format(site, year, mask_type)
+            if check_dir:
+                f = os.path.join(check_dir, '{}.csv'.format(desc))
+                if os.path.exists(f):
+                    print(desc, 'exists, skipping')
+                    continue
 
             irr = irr_coll.filterDate('{}-01-01'.format(year),
                                       '{}-12-31'.format(year)).select('classification').mosaic()
@@ -141,7 +148,6 @@ def flux_tower_ndvi(shapefile, bucket=None, debug=False, mask_type='irr'):
                                        reducer=ee.Reducer.mean(),
                                        scale=30)
 
-            desc = 'ndvi_{}_{}_{}'.format(site, year, mask_type)
             task = ee.batch.Export.table.toCloudStorage(
                 data,
                 description=desc,
@@ -160,6 +166,7 @@ if __name__ == '__main__':
 
     shp = '/media/research/IrrigationGIS/et-demands/examples/flux/gis/flux_fields_sample.shp'
     for mask in ['inv_irr', 'irr']:
+        hk = '/media/research/IrrigationGIS/et-demands/examples/flux/landsat/extracts/ndvi/{}'.format(mask)
         flux_tower_ndvi(shp, bucket_, debug=False, mask_type=mask)
         pass
 

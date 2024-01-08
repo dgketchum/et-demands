@@ -7,12 +7,15 @@ import geopandas as gpd
 from gridmet_corrected.gridmet import corrected_gridmet
 
 
-def join_gridmet_remote_sensing_daily(fields, gridmet_dir, landsat_table,
-                                      dst_dir, overwrite=False, start_date=None, end_date=None):
+def join_gridmet_remote_sensing_daily(fields, gridmet_dir, landsat_table, dst_dir, overwrite=False,
+                                      start_date=None, end_date=None, **kwargs):
 
     lst = pd.read_csv(landsat_table, parse_dates=True, index_col=0)
     start, end = lst.index[0], lst.index[-1]
-    params = set(['_'.join(x.split('_')[1:]) for x in lst.columns])
+    if 'params' not in kwargs.keys():
+        params = set(['_'.join(x.split('_')[1:]) for x in lst.columns])
+    else:
+        params = kwargs['params']
 
     fields = gpd.read_file(fields)
     fields.index = fields['FID']
@@ -42,7 +45,7 @@ if __name__ == '__main__':
 
     d = '/media/research/IrrigationGIS/et-demands'
 
-    project = 'tongue'
+    project = 'flux'
     project_ws = os.path.join(d, 'examples', project)
 
     gridmet = os.path.join(d, 'gridmet')
@@ -52,11 +55,19 @@ if __name__ == '__main__':
     fields_shp = os.path.join(project_ws, 'gis', '{}_fields_sample.shp'.format(project))
     fields_gridmet = os.path.join(project_ws, 'gis', '{}_fields_sample_gfid.shp'.format(project))
     met = os.path.join(project_ws, 'met_timeseries')
-    # corrected_gridmet(fields_shp, grimet_cent, fields_gridmet, met, rasters_, start='2015-01-01',
-    #                   end='2020-12-31')
+    corrected_gridmet(fields_shp, grimet_cent, fields_gridmet, met, rasters_, start='2000-01-01',
+                      end='2020-12-31')
 
     landsat = os.path.join(project_ws, 'landsat', '{}_sensing_sample.csv'.format(project))
     dst_dir_ = os.path.join(project_ws, 'input_timeseries')
-    join_gridmet_remote_sensing_daily(fields_gridmet, met, landsat, dst_dir_, overwrite=True, start_date='2015-01-01',
-                                      end_date='2020-12-31')
+
+    params = ['etf_inv_irr',
+              'ndvi_inv_irr',
+              'etf_irr',
+              'ndvi_irr']
+
+    params += ['{}_ct'.format(p) for p in params]
+
+    join_gridmet_remote_sensing_daily(fields_gridmet, met, landsat, dst_dir_, overwrite=True,
+                                      start_date='2000-01-01', end_date='2020-12-31', **{'params': params})
 # ========================= EOF ====================================================================

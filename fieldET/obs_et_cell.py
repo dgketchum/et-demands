@@ -16,13 +16,17 @@ class ProjectFields:
         super().__init__()
         self.fields_dict = None
 
-    def initialize_field_data(self, config):
+    def initialize_field_data(self, config, target=None):
         self.fields_dict = {}
 
         df = gpd.read_file(config.fields_path)
         df.index = df[config.field_index]
 
         for fid, row in df.iterrows():
+
+            if target and target != fid:
+                continue
+
             field = FieldData()
 
             field.field_id = str(fid)
