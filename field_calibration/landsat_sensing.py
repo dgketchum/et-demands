@@ -54,18 +54,19 @@ def landsat_time_series_table(in_shp, csv_dir, years, out_csv, out_csv_ct):
     gdf = gpd.read_file(in_shp)
     gdf.index = gdf['FID']
 
+    print(csv_dir)
+
     adf, ctdf, first = None, None, True
 
-    dt_index = pd.date_range('{}-01-01'.format(years[0]), '{}-12-31'.format(years[-1]), freq='D')
-    df = pd.DataFrame(index=dt_index, columns=gdf.index)
-    ct = pd.DataFrame(index=dt_index, columns=gdf.index)
-
     for yr in years:
+
+        dt_index = pd.date_range('{}-01-01'.format(yr), '{}-12-31'.format(yr), freq='D')
+        df = pd.DataFrame(index=dt_index, columns=gdf.index)
+        ct = pd.DataFrame(index=dt_index, columns=gdf.index)
 
         file_list = [os.path.join(csv_dir, x) for x in os.listdir(csv_dir) if
          x.endswith('.csv') and '_{}'.format(yr) in x]
 
-        first = True
         for f in file_list:
             field = pd.read_csv(f)
             sid = field.columns[0]
@@ -77,7 +78,10 @@ def landsat_time_series_table(in_shp, csv_dir, years, out_csv, out_csv_ct):
             if not duplicates.empty:
                 field = field.resample('D').mean()
             field = field.sort_index()
-            field[field[sid] == 0.0] = np.nan
+
+            if 'etf' in csv_dir:
+                field[field[sid] < 0.01] = np.nan
+
             df.loc[field.index, sid] = field[sid]
 
             ct.loc[f_idx, sid] = ~pd.isna(field[sid])
@@ -95,6 +99,7 @@ def landsat_time_series_table(in_shp, csv_dir, years, out_csv, out_csv_ct):
         else:
             adf = pd.concat([adf, df], axis=0, ignore_index=False, sort=True)
             ctdf = pd.concat([ctdf, ct], axis=0, ignore_index=False, sort=True)
+        print(yr)
 
     adf.to_csv(out_csv)
     ctdf.to_csv(out_csv_ct)
@@ -282,8 +287,10 @@ if __name__ == '__main__':
     project_ws = os.path.join(d, 'examples', project)
     tables = os.path.join(project_ws, 'landsat', 'tables')
 
+    targets_ = ['US-FPe', 'US-Mj1', 'US-Mj2']
+
     types_ = ['inv_irr', 'irr']
-    sensing_params = ['etf', 'ndvi']
+    sensing_params = ['ndvi']
 
     for mask_type in types_:
 
@@ -298,7 +305,7 @@ if __name__ == '__main__':
             src = os.path.join(tables, '{}_{}_{}_sample.csv'.format(project, sensing_param, mask_type))
             src_ct = os.path.join(tables, '{}_{}_{}_ct_sample.csv'.format(project, sensing_param, mask_type))
 
-            landsat_time_series_table(shp, ee_data, yrs, src, src_ct)
+            # landsat_time_series_table(shp, ee_data, yrs, src, src_ct)
             # landsat_time_series_image(shp, tif, yrs, src, src_ct)
 
     dst_ = os.path.join(project_ws, 'landsat', '{}_sensing_sample.csv'.format(project))

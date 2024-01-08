@@ -6,24 +6,9 @@ import multiprocessing as mp
 
 warnings.filterwarnings("ignore", category=FutureWarning)
 
-d = '/home/dgketchum/PycharmProjects/et-demands/examples/tongue/'
-field_id = '1786'
-
-
-def activate_conda_environment(environment_name):
-    try:
-        activate_cmd = f"conda run -n {environment_name} /bin/bash"
-        subprocess.run(activate_cmd, shell=True, check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-    except subprocess.CalledProcessError as e:
-        print(f"Error activating Conda environment '{environment_name}': {e}")
-        sys.exit(1)
-
-
-activate_conda_environment('mihm')
-
 
 def run():
-    p = '/home/dgketchum/PycharmProjects/et-demands/fieldET/run_field_et.py'
+    p = '/home/dgketchum/PycharmProjects/et-demands/fieldET/run_flux_et.py'
     os.system('python' + ' {}'.format(p))
 
 

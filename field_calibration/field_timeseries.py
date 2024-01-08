@@ -55,8 +55,8 @@ if __name__ == '__main__':
     fields_shp = os.path.join(project_ws, 'gis', '{}_fields_sample.shp'.format(project))
     fields_gridmet = os.path.join(project_ws, 'gis', '{}_fields_sample_gfid.shp'.format(project))
     met = os.path.join(project_ws, 'met_timeseries')
-    corrected_gridmet(fields_shp, grimet_cent, fields_gridmet, met, rasters_, start='2000-01-01',
-                      end='2020-12-31')
+    # corrected_gridmet(fields_shp, grimet_cent, fields_gridmet, met, rasters_, start='2000-01-01',
+    #                   end='2020-12-31')
 
     landsat = os.path.join(project_ws, 'landsat', '{}_sensing_sample.csv'.format(project))
     dst_dir_ = os.path.join(project_ws, 'input_timeseries')

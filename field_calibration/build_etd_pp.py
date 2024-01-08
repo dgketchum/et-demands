@@ -31,8 +31,8 @@ def build_pest_etd(model_dir, pest_dir, input_data, **kwargs):
 
 if __name__ == '__main__':
 
-    fid = '1778'
-    project = 'tongue'
+    fid = 'US-FPe'
+    project = 'flux'
     d = '/home/dgketchum/PycharmProjects/et-demands/examples/{}'.format(project)
 
     data = '/media/research/IrrigationGIS/et-demands/examples/{}/input_timeseries'.format(project)
@@ -41,7 +41,7 @@ if __name__ == '__main__':
     pp_dir = os.path.join(d, 'pest')
 
     ins = '{}.ins'.format(fid)
-    p_file = 'params.csv'.format(project)
+    p_file = os.path.join(d, 'params.csv')
 
     dct = {'obs': {'file': 'eta.np',
                    'insfile': ins},
@@ -60,16 +60,16 @@ if __name__ == '__main__':
                        'pargp': 'tew', 'index_cols': 0, 'use_cols': 1, 'use_rows': 2},
 
                'ndvi_alpha': {'file': p_file,
-                              'initial_value': 1.0, 'lower_bound': 0.1, 'upper_bound': 1.5,
+                              'initial_value': -0.2, 'lower_bound': -0.7, 'upper_bound': 1.5,
                               'pargp': 'ndvi_alpha', 'index_cols': 0, 'use_cols': 1, 'use_rows': 3},
 
                'ndvi_beta': {'file': p_file,
-                             'initial_value': 0.0, 'lower_bound': -0.5, 'upper_bound': 0.5,
+                             'initial_value': 0.8, 'lower_bound': 0.5, 'upper_bound': 1.7,
                              'pargp': 'ndvi_beta', 'index_cols': 0, 'use_cols': 1, 'use_rows': 4},
 
-               'etf_coeff': {'file': p_file,
-                             'initial_value': 1.0, 'lower_bound': 0.6, 'upper_bound': 1.5,
-                             'pargp': 'etf_coeff', 'index_cols': 0, 'use_cols': 1, 'use_rows': 5},
+               'ndvi_fc': {'file': p_file,
+                           'initial_value': 1.0, 'lower_bound': 0.6, 'upper_bound': 1.5,
+                           'pargp': 'ndvi_fc', 'index_cols': 0, 'use_cols': 1, 'use_rows': 5},
 
                'mad': {'file': p_file,
                        'initial_value': 0.6, 'lower_bound': 0.1, 'upper_bound': 0.9,
