@@ -347,5 +347,5 @@ class InitializeObsCropCycle:
 
     def set_kc_max(self, et_cell):
 
-        kc_array = et_cell.input[['etf_inv_irr', 'etf_irr']].quantile(0.9) * self.etf_coeff
+        kc_array = et_cell.input[['etf_inv_irr', 'etf_irr']].quantile(0.9)
         self.kc_max = kc_array.max().item()

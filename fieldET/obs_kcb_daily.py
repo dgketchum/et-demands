@@ -49,7 +49,7 @@ def kcb_daily(config, et_cell, foo, foo_day):
         kc_src = '{}_irr'.format(config.kc_proxy)
         capture_flag = '{}_{}'.format(kc_src, 'ct')
 
-    foo.kc_bas = et_cell.input.loc[foo_day.dt_string, kc_src] * foo.etf_coeff
+    foo.kc_bas = et_cell.input.loc[foo_day.dt_string, kc_src] * foo.ndvi_beta + foo.ndvi_alpha
     if et_cell.input.loc[foo_day.dt_string, capture_flag] > 0.:
         foo.capture = 1
     else:

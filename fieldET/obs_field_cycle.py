@@ -49,8 +49,7 @@ class DayData:
         self.etref_array = np.zeros(30)
 
 
-def field_day_loop(config, field, debug_flag=False):
-
+def field_day_loop(config, field, debug_flag=False, params=None):
     func_str = 'field_day_loop()'
 
     # 'foo' is holder of all these global variables for now
@@ -66,11 +65,14 @@ def field_day_loop(config, field, debug_flag=False):
 
         for k, f in config.calibration_files.items():
 
-            v = pd.read_csv(f, index_col=None, header=0)
+            if params:
+                value = params[k]
+            else:
+                v = pd.read_csv(f, index_col=None, header=0)
 
-            assert v.loc[0, 'pargp1'] == k
+                assert v.loc[0, 'pargp1'] == k
 
-            value = v.loc[0, '1']
+                value = v.loc[0, '1']
 
             foo.__setattr__(k, value)
             print('{}: {:.1f}'.format(k, value))

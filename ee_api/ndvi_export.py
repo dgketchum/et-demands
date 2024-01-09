@@ -87,16 +87,13 @@ def flux_tower_ndvi(shapefile, bucket=None, debug=False, mask_type='irr', check_
 
     for fid, row in df.iterrows():
 
-        for year in range(2000, 2015):
+        for year in range(1987, 2022):
 
             state = row['field_3']
             if state not in STATES:
                 continue
 
             site = row['field_1']
-
-            if site not in ['US-Mj1', 'US-Mj2']:
-                continue
 
             desc = 'ndvi_{}_{}_{}'.format(site, year, mask_type)
             if check_dir:

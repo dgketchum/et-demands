@@ -36,7 +36,6 @@ def compute_field_et(config, et_cell, foo, foo_day, debug_flag=False):
     else:
         fallow = False
 
-
     kc_max = max(foo.kc_max, foo.kc_bas + 0.05)
 
     # Use same value for both ETr or ETo bases.
@@ -56,7 +55,7 @@ def compute_field_et(config, et_cell, foo, foo_day, debug_flag=False):
     else:
         cover_proxy = '{}_irr'.format(config.cover_proxy)
     foo.ndvi = et_cell.input.loc[foo_day.dt_string, cover_proxy]
-    foo.fc = foo.ndvi_alpha * foo.ndvi + foo.ndvi_beta
+    foo.fc = foo.ndvi_fc * foo.ndvi
 
     # limit so that few > 0
     foo.fc = min(foo.fc, 0.99)
