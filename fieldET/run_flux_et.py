@@ -31,7 +31,7 @@ def run_fields(ini_path, flux_obs, debug_flag=False, field_type='irrigated', tar
         obs = pd.read_csv(flux_obs, index_col=0, parse_dates=True)
         cols = ['et_flux'] + ['et_ssebop'] + list(df.columns)
         df['et_flux'] = obs['ET']
-        df['et_ssebop'] = field.input['etf_inv_irr'] * field.input['etr_mm']
+        df['et_ssebop'] = [field.input[k]['etf_inv_irr'] * field.input[k]['etr_mm'] for k in field.input.keys()]
         df = df[cols]
 
         comp = df.loc[df[df['capture'] == 1.0].index].copy()

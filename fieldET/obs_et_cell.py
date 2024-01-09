@@ -66,7 +66,12 @@ class FieldData:
         f = config.input_timeseries.format(self.field_id)
         df = pd.read_csv(f, parse_dates=True, index_col=0)
         df['doy'] = [int(dt.strftime('%j')) for dt in df.index]
-        self.input = df
+
+        self.input = {}
+        for dt, group in df.iterrows():
+            date_str = '{}-{:02d}-{:02d}'.format(dt.year, dt.month, dt.day)
+            self.input[date_str] = group.to_dict()
+
         if config.field_type == 'irrigated':
             self.refet = df['{}_mm'.format(config.refet_type)]
         elif config.field_type == 'unirrigated':

@@ -328,24 +328,8 @@ class InitializeObsCropCycle:
 
         """
 
-        self.crop_df = et_cell.input[['year', 'month', 'day', 'doy']].copy()
-        self.crop_df['capture'] = np.nan
-        self.crop_df['et_act'] = np.nan
-        self.crop_df['et_pot'] = np.nan
-        self.crop_df['et_bas'] = np.nan
-        self.crop_df['kc_act'] = np.nan
-        self.crop_df['kc_bas'] = np.nan
-        self.crop_df['irrigation'] = np.nan
-        self.crop_df['runoff'] = np.nan
-        self.crop_df['dperc'] = np.nan
-        self.crop_df['niwr'] = np.nan
-        self.crop_df['season'] = 0
-        self.crop_df['cutting'] = 0
-        add_cols = [c for c in FOO_FMT if c not in self.crop_df.columns]
-        for c in add_cols:
-            self.crop_df[c] = np.nan
+        self.crop_df = {}
 
     def set_kc_max(self, et_cell):
 
-        kc_array = et_cell.input[['etf_inv_irr', 'etf_irr']].quantile(0.9)
-        self.kc_max = kc_array.max().item()
+        self.kc_max = 1.05

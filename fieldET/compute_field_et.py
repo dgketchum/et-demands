@@ -54,7 +54,7 @@ def compute_field_et(config, et_cell, foo, foo_day, debug_flag=False):
         cover_proxy = '{}_inv_irr'.format(config.cover_proxy)
     else:
         cover_proxy = '{}_irr'.format(config.cover_proxy)
-    foo.ndvi = et_cell.input.loc[foo_day.dt_string, cover_proxy]
+    foo.ndvi = et_cell.input[foo_day.dt_string][cover_proxy]
     foo.fc = foo.ndvi_fc * foo.ndvi
 
     # limit so that few > 0

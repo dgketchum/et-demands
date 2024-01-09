@@ -90,7 +90,7 @@ def field_day_loop(config, field, debug_flag=False, params=None):
     foo_day.sdays = 0
     foo_day.doy_prev = 0
 
-    for step_dt, step_doy in foo.crop_df[['doy']].iterrows():
+    for step_dt, vals in field.input.items():
 
         if debug_flag:
             logging.debug(
@@ -101,14 +101,14 @@ def field_day_loop(config, field, debug_flag=False, params=None):
         # Track variables for each day
         # For now, cast all values to native Python types
         foo_day.sdays += 1
-        foo_day.doy = int(step_doy.item())
-        foo_day.year = int(step_dt.year)
-        foo_day.month = int(step_dt.month)
-        foo_day.day = int(step_dt.day)
+        foo_day.doy = int(vals['doy'])
+        foo_day.year = int(vals['year'])
+        foo_day.month = int(vals['month'])
+        foo_day.day = int(vals['day'])
         foo_day.date = step_dt
         foo_day.dt_string = '{}-{:02d}-{:02d}'.format(foo_day.year, foo_day.month, foo_day.day)
         foo_day.etref = float(field.refet.at[step_dt])
-        foo_day.precip = float(field.input.at[step_dt, 'prcp_mm'])
+        foo_day.precip = float(field.input[step_dt]['prcp_mm'])
         foo_day.snow_depth = 0.0
 
         if foo_day.precip == 13.0:
@@ -127,34 +127,35 @@ def field_day_loop(config, field, debug_flag=False, params=None):
 
         # Retrieve values from foo_day and write to output data frame
         # Eventually let compute_crop_et() write directly to output df
-        foo.crop_df.at[step_dt, 'etref'] = field.refet.at[step_dt]
-        foo.crop_df.at[step_dt, 'et_act'] = foo.etc_act
-        foo.crop_df.at[step_dt, 'capture'] = foo.capture
-        foo.crop_df.at[step_dt, 'kc_act'] = foo.kc_act
-        foo.crop_df.at[step_dt, 'ks'] = foo.ks
-        foo.crop_df.at[step_dt, 'ke'] = foo.ke
-        foo.crop_df.at[step_dt, 'ppt'] = foo_day.precip
-        foo.crop_df.at[step_dt, 'depl_root'] = foo.depl_root
-        foo.crop_df.at[step_dt, 'depl_surface'] = foo.depl_surface
-        foo.crop_df.at[step_dt, 'p_rz'] = foo.p_rz
-        foo.crop_df.at[step_dt, 'p_eft'] = foo.p_eft
+        foo.crop_df[step_dt] = {}
 
-        foo.crop_df.at[step_dt, 'fc'] = foo.fc
-        foo.crop_df.at[step_dt, 'few'] = foo.few
-        foo.crop_df.at[step_dt, 'aw3'] = foo.aw3
-
-        foo.crop_df.at[step_dt, 'irrigation'] = foo.irr_sim
-        foo.crop_df.at[step_dt, 'runoff'] = foo.sro
-        foo.crop_df.at[step_dt, 'dperc'] = foo.dperc
-        foo.crop_df.at[step_dt, 'zr'] = foo.zr
-        foo.crop_df.at[step_dt, 'kc_bas'] = foo.kc_bas
-        foo.crop_df.at[step_dt, 'niwr'] = foo.niwr + 0
-        foo.crop_df.at[step_dt, 'et_bas'] = foo.etc_bas
-        foo.crop_df.at[step_dt, 'season'] = int(foo.in_season)
-        foo.crop_df.at[step_dt, 'cutting'] = int(foo.cutting)
+        foo.crop_df[step_dt]['etref'] = field.refet.at[step_dt]
+        foo.crop_df[step_dt]['et_act'] = foo.etc_act
+        foo.crop_df[step_dt]['capture'] = foo.capture
+        foo.crop_df[step_dt]['kc_act'] = foo.kc_act
+        foo.crop_df[step_dt]['ks'] = foo.ks
+        foo.crop_df[step_dt]['ke'] = foo.ke
+        foo.crop_df[step_dt]['ppt'] = foo_day.precip
+        foo.crop_df[step_dt]['depl_root'] = foo.depl_root
+        foo.crop_df[step_dt]['depl_surface'] = foo.depl_surface
+        foo.crop_df[step_dt]['p_rz'] = foo.p_rz
+        foo.crop_df[step_dt]['p_eft'] = foo.p_eft
+        foo.crop_df[step_dt]['fc'] = foo.fc
+        foo.crop_df[step_dt]['few'] = foo.few
+        foo.crop_df[step_dt]['aw3'] = foo.aw3
+        foo.crop_df[step_dt]['irrigation'] = foo.irr_sim
+        foo.crop_df[step_dt]['runoff'] = foo.sro
+        foo.crop_df[step_dt]['dperc'] = foo.dperc
+        foo.crop_df[step_dt]['zr'] = foo.zr
+        foo.crop_df[step_dt]['kc_bas'] = foo.kc_bas
+        foo.crop_df[step_dt]['niwr'] = foo.niwr + 0
+        foo.crop_df[step_dt]['et_bas'] = foo.etc_bas
+        foo.crop_df[step_dt]['season'] = int(foo.in_season)
+        foo.crop_df[step_dt]['cutting'] = int(foo.cutting)
 
         # Write final output file variables to DEBUG file
 
+    foo.crop_df = pd.DataFrame().from_dict(foo.crop_df, orient='index')
     foo.crop_df = foo.crop_df[OUTPUT_FMT]
     return foo.crop_df
 
