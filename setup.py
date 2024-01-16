@@ -7,6 +7,7 @@ setup(
     install_requires=[
         'pandas',
     ],
+    py_modules=['fieldET.run_field_et'],
     entry_points={
         'console_scripts': [
             'et-demands-field = fieldET.obs_field_cycle:main',
