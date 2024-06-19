@@ -221,7 +221,7 @@ class CropETData:
             self.cell_crops_path = cell_crops_name
             if not os.path.isfile(self.cell_crops_path):
                 logging.error('ERROR:  ET Cells crops file {} does not exist'
-                              .format(self.self.cell_crops_path))
+                              .format(self.cell_crops_path))
                 sys.exit()
         logging.info('  ET Cell crops file: {}'.format(self.cell_crops_path))
 

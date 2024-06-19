@@ -117,9 +117,9 @@ def main(ini_path, area_threshold=10,
     static_ws = os.path.join(project_ws, 'static')
 
     # Weather station shapefile fields
-    station_id_field = 'STATION_ID'
-    station_lat_field = 'LAT'
-    station_lon_field = 'LON'
+    station_id_field = 'GFID'
+    station_lat_field = 'lat'
+    station_lon_field = 'lon'
     if station_elev_units.upper() in ['FT', 'FEET']:
         station_elev_field = 'ELEV_FT'
     elif station_elev_units.upper() in ['M', 'METERS']:
@@ -408,7 +408,7 @@ def arg_parse():
 
 
 if __name__ == '__main__':
-    ini = '/home/dgketchum/PycharmProjects/et-demands/examples/tongue/tongue_example_prep.ini'
+    ini = '/home/dgketchum/PycharmProjects/et-demands/examples/tongue/tongue_example_cet.ini'
     debug = logging.DEBUG
     overwrite = True
     logging.basicConfig(level=logging.DEBUG)

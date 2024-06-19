@@ -101,8 +101,8 @@ def main(ini_path, area_threshold=10,
     crop_params_path = os.path.join(static_ws, crop_params_name)
 
     # ET cells field names
-    cell_id_field = 'CELL_ID'
-    cell_name_field = 'CELL_NAME'
+    cell_id_field = 'FID'
+    cell_name_field = 'FID'
     crop_acres_field = 'CROP_ACRES'
 
     # Only keep the following ET Cell fields
@@ -488,7 +488,7 @@ def arg_parse():
 
 
 if __name__ == '__main__':
-    ini = '/home/dgketchum/PycharmProjects/et-demands/examples/tongue/tongue_example_prep.ini'
+    ini = '/home/dgketchum/PycharmProjects/et-demands/examples/tongue/tongue_example_cet.ini'
     debug = logging.DEBUG
     overwrite = True
     logging.basicConfig(level=logging.DEBUG)
