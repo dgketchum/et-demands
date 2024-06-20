@@ -237,7 +237,7 @@ def crop_day_loop(crop_count, data, et_cell, crop, debug_flag=False,
         # Track variables for each day
         # For now, cast all values to native Python types
         foo_day.sdays += 1
-        foo_day.doy = int(step_doy)
+        foo_day.doy = int(step_doy.iloc[0])
         if foo_day.doy == 155:
             a = 1
         foo_day.year = int(step_dt.year)
