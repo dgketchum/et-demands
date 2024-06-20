@@ -39,13 +39,3 @@ Percent PL-EC or PL-TM (type 1-2-4)	Percent PL-EC+ days after (type 3)	Spring wh
 	210																														0.40	0.30	0.60		0.50	1.05	1.50										0.83	0.45								0.71		0.42			0.79	0.34
 	220																														0.40	0.30	0.60		0.50												0.83	0.44								0.71		0.38			0.79	0.34
 	230																														0.40	0.30	0.60														0.83	0.43								0.71		0.33			0.79	0.34
-GDD Base C		0	0	0	0	5	5	5	10-corn	10-corn	10-corn	5	5	0	0	0	0	0	0	0																																										
-GDD Type	1=simple 2=corn	1	1	1	1	1	1	1	2	2	2	1	1	1	1	1	1	1	1	1																																										
-CGDD Planting to FC		935	1350	635	635	710	780	780	510	510	510	670	670	— 	— 	— 	700	935	1400	1300																																										
-CGDD Planting to Terminate		2160	2608	1616	1000	1843	1850	1600	1200	1000	800	1350	950	850	1050	1050	— 	2160	4000	4000																																										
-CGDD Planting to Terminate-alt														700	850	850																																														
-Comment:														first value is for ‘beef hay’ and second for ‘dairy hay’			begin to reduce 1%/day after first -2C min.temp in fall- then frost		use First Cycle Alfalfa	One cutting of grass hay (at 100% pt)- then hold until frost		go until frost	go until frost		go until frost	go until frost				go until frost	run until frost	run until frost			run until frost	run until frost	run until frost	assume that end of season is equal to July 15 + (July 15 - Greenup)  (I.e. symmetry around July 15)																								
-Comment 2:																	use First Cycle Alfalfa		Est. GU_mint as 600 GDD																			Estimate greenup from 30 day Tmean = 5 C (at end of 30 day period) less X days (10?)																								
-																																										go until frost	go until frost																			
-																																						Note that these Kcbr curves are POTENTIAL Kc's and MUST be used with a 																								
-																																						soil water balance and stress reduction coefficient to derive ACTUAL ET.																								

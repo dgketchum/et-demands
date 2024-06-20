@@ -118,8 +118,8 @@ def main(ini_path, area_threshold=10,
 
     # Weather station shapefile fields
     station_id_field = 'GFID'
-    station_lat_field = 'lat'
-    station_lon_field = 'lon'
+    station_lat_field = 'LAT'
+    station_lon_field = 'LON'
     if station_elev_units.upper() in ['FT', 'FEET']:
         station_elev_field = 'ELEV_FT'
     elif station_elev_units.upper() in ['M', 'METERS']:
@@ -283,6 +283,8 @@ def main(ini_path, area_threshold=10,
 
             if station_id:
                 #STATION_ID can be either a str or int in the cells .shp
+                if isinstance(station_id, float):
+                    station_id = str(int(station_id))
                 station_data = station_data_dict[str(station_id)]
                 station_lat = '{:>9.4f}'.format(station_data[station_lat_field])
                 station_lon = '{:>9.4f}'.format(station_data[station_lon_field])
